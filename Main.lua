@@ -2,7 +2,7 @@ require("lib.FRAMELOOP")
 require('lib.overloads')
 
 
-local meshes = importer.loadOBJ('untitled.obj')
+local meshes = importer.obj:load('untitled.obj')
 local shader = LG.newShader 'shader/main.glsl'
 
 local transform = matClass:new():setTransformationMatrix({0,0,0},{0,0,0,1},{1,1,1})
