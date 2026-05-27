@@ -79,3 +79,11 @@ function ThisDir(level)
     if src:sub(1,1) == "@" then src = src:sub(2) end
     return src:match("(.*[/\\])") or ""
 end
+
+
+
+function ShaderTryUniform(shader,k,v)
+    if shader:hasUniform(k) then 
+        shader:send(k,v)
+    end
+end

@@ -7,8 +7,16 @@
 -- indices   : array of ints (1-based), nil if not indexed
 -- attributes: { position=true, normal=true, texcoord=true } presence flags
 
+--[=[
+    local path       = args.path
+    local withMesh   = args.mesh or true
+    local withTex    = args.tex  or true
+    local anisotropy = args.anisotropy or 1
+]=]
+
 local ffi      = require "ffi"
 local matClass = require "math.mat4"
+local texLoader = require "importer.texture"
 
 local gltf = {}
 
@@ -242,9 +250,9 @@ end
 
 -- ── main load ─────────────────────────────────────────────────────────────────
 function gltf.load(args)
-    local path     = args.path
-    local withMesh   = args.mesh or false
-    local withTex    = args.tex  or false
+    local path       = args.path
+    local withMesh   = args.mesh or true
+    local withTex    = args.tex  or true
     local anisotropy = args.anisotropy or 1
 
     local data = read_file(path)
@@ -382,17 +390,24 @@ function gltf.load(args)
                                 if img_json.uri then
                                     local dir = path:match("(.*[/\\])") or ""
                                     entry.material.texturePath = dir .. img_json.uri
-                                    entry.material.texture = love.graphics.newImage(entry.material.texturePath, { mipmaps = true })
-                                    entry.material.texture:setFilter("linear", "linear", anisotropy)
+                                    entry.material.texture = texLoader.import(
+                                        entry.material.texturePath,
+                                        { anisotropy = anisotropy, wrap = "repeat", mipmaps = true })
                                 elseif img_json.bufferView then
-                                    local raw = get_accessor_data(j, buffers, img_json.bufferView)
-                                    -- bufferView directly, not accessor — read manually
-                                    local bv  = j.bufferViews[img_json.bufferView + 1]
-                                    local buf = buffers[bv.buffer + 1]
-                                    local bytes = buf:sub((bv.byteOffset or 0)+1, (bv.byteOffset or 0)+bv.byteLength)
-                                    local fd = love.filesystem.newFileData(bytes, img_json.name or "tex")
-                                    entry.material.texture = love.graphics.newImage(love.image.newImageData(fd), { mipmaps = true })
-                                    entry.material.texture:setFilter("linear", "linear", anisotropy)
+                                    -- embedded в glb: ключ = "<glbPath>#<texIndex>"
+                                    local key = path .. "#" .. tex_idx
+                                    local tex = texLoader.get(key)
+                                    if not tex then
+                                        local bv  = j.bufferViews[img_json.bufferView + 1]
+                                        local buf = buffers[bv.buffer + 1]
+                                        local bytes = buf:sub((bv.byteOffset or 0)+1, (bv.byteOffset or 0)+bv.byteLength)
+                                        local fd  = love.filesystem.newFileData(bytes, img_json.name or "tex")
+                                        tex = love.graphics.newImage(love.image.newImageData(fd), { mipmaps = true })
+                                        texLoader.put(key, tex)
+                                    end
+                                    tex:setFilter("linear", "linear", anisotropy)
+                                    tex:setWrap("repeat")
+                                    entry.material.texture = tex
                                 end
                             end
                         end

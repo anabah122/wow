@@ -1,7 +1,6 @@
 
 varying vec3 vWorldPos;
 varying vec3 vNormal;
-varying float depth;
 
 #ifdef VERTEX
 
@@ -20,9 +19,7 @@ vec4 position(mat4 transform_projection, vec4 vertex_position) {
     vec3 world = qrot(InstanceRot, vertex_position.xyz) + InstancePos;
     vWorldPos  = world;
     vNormal    = qrot(InstanceRot, VertexNormal);
-    vec4 vertexResult = viewproj * transform * vec4(world, 1.0);
-    depth = vertexResult.w ;
-    return vertexResult;
+    return viewproj * transform * vec4(world, 1.0);
 }
 
 #endif
@@ -38,7 +35,6 @@ uniform vec3  ambient;
 uniform vec3  fogColor;
 uniform float fogDensity;
 uniform vec3  cameraPos;
-uniform Image MainTex;
 
 uniform Image lut;
 const float LUT_SIZE = 32.0;
@@ -60,9 +56,9 @@ vec3 applyLUT(vec3 c) {
     return mix(Texel(lut, uv0).rgb, Texel(lut, uv1).rgb, t);
 }
 
-void effect() {
-    vec4 col = Texel(MainTex, VaryingTexCoord.xy );
-    if (col.a < min_alpha) discard;
+vec4 effect(vec4 color, Image tex, vec2 texUv, vec2 screen_coords) {
+    vec4 col = Texel(tex, texUv);
+    if (col.a < min_alpha || col.rgb == vec3(0,1,1)) discard;
 
     vec3 N = normalize(mix(normalize(vNormal), vec3(0.0, 1.0, 0.0), 0.7));
     float ndl = dot(N, lightDir) * 0.5 + 0.5; // half-lambert
@@ -73,10 +69,7 @@ void effect() {
     lit = mix(fogColor, lit, clamp(fog, 0.0, 1.0));
 
     lit = applyLUT(lit);
-
-    love_Canvases[0] = vec4(lit, col.a);            // diffuse
-    love_Canvases[1] = vec4(normalize(vNormal), 1.0); // world normal
-    love_Canvases[2] = vec4(depth);                   // depth
+    return vec4(lit, col.a);
 }
 
 #endif

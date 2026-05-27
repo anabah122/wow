@@ -23,6 +23,10 @@ function Vector3:new(x, y, z)
     return setmetatable({x = x, y = y, z = z, type = 'vec3'}, Vector3)
 end
 
+function Vector3:get()
+    return {self.x,self.y,self.z}
+end
+
 
 function Vector3:clone()
     return Vector3:new(self.x, self.y, self.z)

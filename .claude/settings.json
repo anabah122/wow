@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/LOVE/cubach/importer/formats/**)",
+      "Read(//c/LOVE/cubach/**)",
+      "WebSearch"
+    ]
+  }
+}
