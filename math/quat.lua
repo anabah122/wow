@@ -20,4 +20,24 @@ end
 
 function quat:unpack() return self[1], self[2], self[3], self[4] end
 
+-- кватернион поворота на angle (рад) вокруг оси axis ('x'|'y'|'z')
+function quat:axis(ax, angle)
+    local h = angle * 0.5
+    local s, c = math.sin(h), math.cos(h)
+    if     ax == 'x' then return quat:new(s, 0, 0, c)
+    elseif ax == 'y' then return quat:new(0, s, 0, c)
+    else                  return quat:new(0, 0, s, c) end
+end
+
+-- произведение a*b (сначала применяется b, потом a)
+function quat:mul(b)
+    local ax, ay, az, aw = self[1], self[2], self[3], self[4]
+    local bx, by, bz, bw = b[1], b[2], b[3], b[4]
+    return quat:new(
+        aw*bx + ax*bw + ay*bz - az*by,
+        aw*by - ax*bz + ay*bw + az*bx,
+        aw*bz + ax*by - ay*bx + az*bw,
+        aw*bw - ax*bx - ay*by - az*bz)
+end
+
 return quat

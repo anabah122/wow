@@ -380,6 +380,8 @@ function gltf.load(args)
                     entry.material = {
                         name      = mat.name,
                         baseColor = pbr.baseColorFactor or {1,1,1,1},
+                        blendMode = mat.extras and mat.extras.blendMode or 0,  -- EGxBlend, см. doc/render.md
+                        twoSided  = mat.doubleSided or false, -- стандартное glTF поле (TwoSided флаг) -> cull none
                     }
                     if withTex and pbr.baseColorTexture then
                         local tex_idx = pbr.baseColorTexture.index + 1
@@ -388,8 +390,17 @@ function gltf.load(args)
                             local img_json = (j.images or {})[tex_json.source + 1]
                             if img_json then
                                 if img_json.uri then
+                                    -- uri относителен папке glb (стандарт glTF); нормализуем ../ посегментно
+                                    -- (regex-коллапс ломался на нескольких ../ подряд)
                                     local dir = path:match("(.*[/\\])") or ""
-                                    entry.material.texturePath = dir .. img_json.uri
+                                    local p = (dir .. img_json.uri):gsub("\\", "/")
+                                    local out = {}
+                                    for seg in p:gmatch("[^/]+") do
+                                        if seg == ".." then out[#out] = nil
+                                        elseif seg ~= "." then out[#out+1] = seg end
+                                    end
+                                    p = table.concat(out, "/")
+                                    entry.material.texturePath = p
                                     entry.material.texture = texLoader.import(
                                         entry.material.texturePath,
                                         { anisotropy = anisotropy, wrap = "repeat", mipmaps = true })
@@ -439,6 +450,8 @@ end
 
 -- ── convenience: build love.Mesh from a loaded entry ─────────────────────────
 -- call inside love.load or love.draw
+-- запекаем node-трансформ части в вершины: все парты в едином пространстве модели,
+-- тогда поворот инстанса (qrot вокруг 0,0,0) идёт вокруг ориджина всей модели, а не центра парта.
 function gltf.to_mesh(entry, usage)
     usage = usage or "static"
     local fmt = {
@@ -446,7 +459,17 @@ function gltf.to_mesh(entry, usage)
         { "VertexNormal",   "float", 3 },
         { "VertexTexCoord", "float", 2 },
     }
-    local m = love.graphics.newMesh(fmt, entry.vertices, "triangles", usage)
+    local mtx = entry.transform
+    local verts = entry.vertices
+    if mtx then
+        verts = {}
+        for i, v in ipairs(entry.vertices) do
+            local px, py, pz = mtx:mulVec4(v[1], v[2], v[3], 1)
+            local nx, ny, nz = mtx:mulVec4(v[4], v[5], v[6], 0)
+            verts[i] = { px, py, pz, nx, ny, nz, v[7], v[8] }
+        end
+    end
+    local m = love.graphics.newMesh(fmt, verts, "triangles", usage)
     if entry.indices then
         m:setVertexMap(entry.indices)
     end

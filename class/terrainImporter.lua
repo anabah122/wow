@@ -1,233 +1,156 @@
--- ── ADT 3.3.5a importer ──────────────────────────────────────────────────────
--- чистый парсинг тайла. БЕЗ love.graphics, БЕЗ глобалов — гоняется в воркер-треде.
--- importTile(path) -> { tx, ty, heightData, maskData, names, instances }
---   heightData : ImageData 129x129 r32f (высоты тайла)
---   maskData   : ImageData 512x512 rgba8 (альфа-маски, R/G/B = слои 1/2/3)
---   names      : список { path, data } текстур тайла (data = ImageData 256x256, для ArrayImage в main)
---   instances  : { {wx,wz, hu,hv, mu,mv, L1,L2,L3,L4, nLayers}, ... }
---     L1..L4 — ЛОКАЛЬНЫЕ индексы в names (0 = нет слоя); main ремапит в глобальные.
---   models     : { путь .m2, ... } — 1-based, индексируется doodad.model
---   doodads    : { {modelIdx, x,y,z, rx,ry,rz, scale}, ... } M2-инстансы (деревья/трава)
---     x,y,z — world-координаты; rx,ry,rz — поворот в радианах; scale — множитель.
--- требует в треде: require('love.image'), require('love.filesystem').
+-- импорт одного ADT-атласа (выход wowconv.exe) -> готовые к рендеру GPU-ресурсы.
+-- ВСЁ чтение с диска (height.r32, mask.png, bind.png, terrain.json, tileset png) — здесь.
+-- import(dir, tx, ty) -> {
+--   heightTex, maskTex, diffuse,         -- текстуры для wow.glsl
+--   instanceMesh, count,                 -- 16x16 чанков-инстансов
+--   doodads = { {names, placements, isWmo}, ... }   -- сырьё моделей для terrain:build
+-- }
+local importer = require 'importer.importer'
+local quat     = require 'math.quat'
+local ffi      = require 'ffi'
 
-local ffi = require 'ffi'
+local D2R = math.pi / 180
 
-local CHUNKS = 16
-local UNIT   = 33.33333 / 8
-local TILE   = 533.33333
-local OUTER  = 9
-local GRID   = CHUNKS * (OUTER - 1) + 1   -- 129
-local MASK   = 32                          -- разрешение маски чанка
-local MASKW  = CHUNKS * MASK               -- 512
-
--- magic в файле реверснут: 'MCNK' лежит как 'KNCM'
-local function fourcc(s, pos)
-    return s:sub(pos+3, pos+3) .. s:sub(pos+2, pos+2) .. s:sub(pos+1, pos+1) .. s:sub(pos, pos)
-end
-
-local function u32(s, pos)
-    local a, b, c, d = s:byte(pos, pos+3)
-    return a + b*256 + c*65536 + d*16777216
-end
-
-local function u16(s, pos)
-    local a, b = s:byte(pos, pos+1)
-    return a + b*256
-end
-
-local function f32(sp, pos)  -- pos 1-based в строке
-    return ffi.cast('const float*', sp + (pos - 1))[0]
-end
-
-local function scanChunks(s, from, to)
-    local out = {}
-    local pos = from
-    while pos < to do
-        local size = u32(s, pos+4)
-        out[#out+1] = { tag = fourcc(s, pos), off = pos + 8, size = size }
-        pos = pos + 8 + size
-    end
-    return out
-end
-
--- MCAL: альфа-маска слоя -> плоская таблица 64x64 (0..255)
-local function readAlpha64(sp, off, compressed)
-    local out = {}
-    if compressed then
-        local o, p = 0, off
-        while o < 64*64 do
-            local ctl = sp[p]; p = p + 1
-            if ctl >= 0x80 then
-                local v = sp[p]; p = p + 1
-                for _ = 1, ctl - 0x80 do out[o+1] = v; o = o + 1 end
-            else
-                for _ = 1, ctl do out[o+1] = sp[p]; p = p + 1; o = o + 1 end
-            end
-        end
-    else
-        for i = 0, 64*64/2 - 1 do
-            local b = sp[off + i]
-            out[i*2+1] = (b % 16) * 17
-            out[i*2+2] = math.floor(b / 16) * 17
-        end
-    end
-    return out
-end
-
--- 'Tileset\Hyjal\Name.blp' -> 'assets/Tileset/Hyjal/Name.png'
-local function pngPath(blpPath)
-    return 'assets/' .. blpPath:gsub('\\', '/'):gsub('%.blp$', '.png')
-end
-
--- парсит один MCNK в общие буферы тайла
-local function parseMcnk(s, sp, mc, ci, tx, ty, hp, mp, texList, texIdx, instances)
-    local hOff = mc.off
-    local base = hOff - 8
-    local posZ = ffi.cast('float*', ffi.cast('const char*', s) + (hOff - 1) + 0x70)[0]
-    local vptr = ffi.cast('float*', ffi.cast('const char*', s) + (hOff + 136 - 1))
-
-    local nLayers = u32(s, hOff + 0x0C)
-    local ofsMCLY = u32(s, hOff + 0x1C)
-    local ofsMCAL = u32(s, hOff + 0x24)
-
-    local cx = (ci - 1) % CHUNKS
-    local cy = math.floor((ci - 1) / CHUNKS)
-
-    -- высоты outer 9x9 -> окно атласа высот тайла
-    for row = 0, OUTER - 1 do
-        for col = 0, OUTER - 1 do
-            local gx = cx * (OUTER - 1) + col
-            local gy = cy * (OUTER - 1) + row
-            hp[gy * GRID + gx] = posZ + vptr[row * 17 + col]
-        end
-    end
-
-    -- слои: локальные индексы текстур (в texList тайла) + альфа в маск-окно
-    local idx = { 0, 0, 0, 0 }
-    local mx0, my0 = cx * MASK, cy * MASK
-    for L = 0, nLayers - 1 do
-        local rOff  = base + ofsMCLY + 8 + L * 16
-        local texId = u32(s, rOff)
-        local flags = u32(s, rOff + 4)
-        local aOff  = u32(s, rOff + 8)
-        -- регистрируем имя текстуры в локальном списке тайла
-        local name = pngPath(texList.raw[texId + 1] or '')
-        if not texIdx[name] then
-            texList[#texList+1] = { path = name, data = love.image.newImageData(name) }
-            texIdx[name] = #texList
-        end
-        idx[L+1] = texIdx[name]
-
-        local useAlpha   = math.floor(flags / 0x100) % 2 == 1
-        local compressed = math.floor(flags / 0x200) % 2 == 1
-        if L > 0 and useAlpha then
-            local a = readAlpha64(sp, base + ofsMCAL + 8 + aOff - 1, compressed)
-            local ch = L - 1
-            for my = 0, MASK - 1 do
-                for mxi = 0, MASK - 1 do
-                    local v = a[(my*2)*64 + (mxi*2) + 1]
-                    mp[((my0 + my) * MASKW + (mx0 + mxi)) * 4 + ch] = v
-                end
-            end
-        end
-    end
-
-    local ox, oz = tx * TILE, ty * TILE
-    instances[#instances+1] = {
-        ox + cx * (OUTER - 1) * UNIT, oz + cy * (OUTER - 1) * UNIT,
-        cx * (OUTER - 1) / (GRID - 1), cy * (OUTER - 1) / (GRID - 1),
-        mx0 / MASKW, my0 / MASKW,
-        idx[1], idx[2], idx[3], idx[4],
-        nLayers,
-    }
-end
-
--- M2-инстансы (деревья/трава/камни): MMDX(пути) + MMID(оффсеты) + MDDF(размещения)
--- модель -> локальный путь .m2; инстанс -> world-позиция + поворот(рад) + scale
-local MAPHALF = 32 * TILE   -- 17066.66, центр карты для пересчёта координат
-local function parseDoodads(s, sp, top)
-    local mmdxOff, mmidOff, mmidN, mddfOff, mddfN
-    for _, c in ipairs(top) do
-        if     c.tag == 'MMDX' then mmdxOff = c.off
-        elseif c.tag == 'MMID' then mmidOff, mmidN = c.off, c.size / 4
-        elseif c.tag == 'MDDF' then mddfOff, mddfN = c.off, c.size / 36 end
-    end
-
-    local models = {}        -- 1-based: путь .m2 по индексу MMID
-    if mmidOff then
-        for i = 0, mmidN - 1 do
-            local strOff = mmdxOff + u32(s, mmidOff + i * 4)
-            models[i + 1] = s:match('^[^%z]*', strOff)
-        end
-    end
-
-    local doodads = {}       -- { model, x,y,z, rx,ry,rz, scale }
-    if mddfOff then
-        local D2R = math.pi / 180
-        for i = 0, mddfN - 1 do
-            local r = mddfOff + i * 36
-            local nameId = u32(s, r)
-            local px, py, pz = f32(sp, r + 0x08), f32(sp, r + 0x0C), f32(sp, r + 0x10)
-            local rx, ry, rz = f32(sp, r + 0x14), f32(sp, r + 0x18), f32(sp, r + 0x1C)
-            local scale = u16(s, r + 0x20) / 1024
-            doodads[#doodads+1] = {
-                model = nameId + 1,
-                MAPHALF - px, py, MAPHALF - pz,   -- world XYZ (формула из справки)
-                rx * D2R, ry * D2R, rz * D2R,     -- поворот в радианах
-                scale,
-            }
-        end
-    end
-    return models, doodads
-end
-
--- главная: парсит .adt -> таблица результата (thread-safe для Channel)
-local function importTile(path)
-    local tx, ty = path:match('_(%d+)_(%d+)%.adt$')
-    tx, ty = tonumber(tx), tonumber(ty)
-
-    local s  = assert(love.filesystem.read(path), 'cannot read ' .. path)
-    local sp = ffi.cast('const uint8_t*', s)
-
-    local top = scanChunks(s, 1, #s + 1)
-    local mcnks = {}
-    local rawTex = {}  -- сырые пути из MTEX
-    for _, c in ipairs(top) do
-        if c.tag == 'MCNK' then
-            mcnks[#mcnks+1] = c
-        elseif c.tag == 'MTEX' then
-            local blob = s:sub(c.off, c.off + c.size - 1)
-            for p in blob:gmatch('[^%z]+') do rawTex[#rawTex+1] = p end
-        end
-    end
-
-    local heightData = love.image.newImageData(GRID, GRID, 'r32f')
-    local maskData   = love.image.newImageData(MASKW, MASKW, 'rgba8')
-    local hp = ffi.cast('float*',   heightData:getFFIPointer())
-    local mp = ffi.cast('uint8_t*', maskData:getFFIPointer())
-    ffi.fill(mp, MASKW*MASKW*4, 0)
-
-    local texList = { raw = rawTex }  -- локальный список png тайла (1-based)
-    local texIdx  = {}
-    local instances = {}
-
-    for ci, mc in ipairs(mcnks) do
-        parseMcnk(s, sp, mc, ci, tx, ty, hp, mp, texList, texIdx, instances)
-    end
-
-    local models, doodads = parseDoodads(s, sp, top)
-
-    texList.raw = nil  -- не шлём сырьё через Channel
+-- placement -> движковый инстанс { x,y,z, qx,qy,qz,qw, scale }.
+-- position уже в движковых координатах (НЕ трогаем — раньше работало). rotation — эйлеры в градусах.
+-- геометрия в glTF свопнута Z-up->Y-up (x,z,-y); стандартная WoW MDDF ориентация для Y-up:
+--   rot = Ry(ry - 90) * Rz(-rz) * Rx(rx)
+local function placeWorld(p)
+    local rx, ry, rz = p.rotation[1] * D2R, p.rotation[2] * D2R, p.rotation[3] * D2R
+    local q = quat:axis('y', ry - math.pi / 2)
+            :mul(quat:axis('z', -rz))
+            :mul(quat:axis('x', rx))
+    local qx, qy, qz, qw = q:unpack()
     return {
-        tx = tx, ty = ty,
-        heightData = heightData,
-        maskData   = maskData,
-        names      = texList,    -- список png путей тайла
-        instances  = instances,
-        models     = models,     -- 1-based пути .m2 для doodad-инстансов тайла
-        doodads    = doodads,    -- { modelIdx, x,y,z, rx,ry,rz, scale }
+        p.position[1], p.position[2], p.position[3],
+        qx, qy, qz, qw,
+        (p.scale or 1024) / 1024,
     }
 end
 
-return importTile
+local OUTER  = 9
+local HSTEP  = OUTER - 1          -- 8 текселей высоты на чанк
+local UNIT   = 33.33333 / 8       -- ярдов на тексель
+local TILE   = 533.33333
+local GRID   = 129                -- атлас высот ADT
+local MASK   = 64                 -- маск-окно чанка (нативный MCAL 64x64)
+local MTILE  = 1024               -- маск-атлас ADT
+local CHUNKS = 16
+
+local INSTANCE_FMT = {
+    { 'iWorldXZ',  'float', 2 },
+    { 'iHeightUV', 'float', 2 },
+    { 'iMaskUV',   'float', 2 },
+    { 'iLayers',   'float', 4 },
+    { 'iNLayers',  'float', 1 },
+}
+
+local M = {}
+
+-- height.r32 -> R32F текстура (абсолютная Z в ярдах)
+local function loadHeight(dir)
+    local raw = assert(LF.read(dir .. '/height.r32'), 'no height.r32')
+    local img = love.image.newImageData(GRID, GRID, 'r32f')
+    ffi.copy(img:getFFIPointer(), raw, GRID * GRID * 4)
+    local tex = LG.newImage(img)
+    tex:setFilter('linear', 'linear'); tex:setWrap('clamp')
+    return tex
+end
+
+local function loadMask(dir)
+    local tex = LG.newImage(dir .. '/mask.png')
+    tex:setFilter('linear', 'linear'); tex:setWrap('clamp')
+    return tex
+end
+
+-- terrain.json.tiles уже содержит зеркальный путь с .png -> префикс converted/
+local function tilePng(tile)
+    return ('assets/converted/' .. tile:gsub('\\', '/')):lower()
+end
+
+-- diffuse ArrayImage из tiles[] (по слою на тайлсет).
+-- ArrayImage требует одинаковый размер слоёв; тайлы WoW бывают разного (напр. 8x8
+-- заглушки) -> приводим каждый к 256x256.
+local TILE_SIZE = 256
+local function loadDiffuse(tiles)
+    local slices = {}
+    for i, blp in ipairs(tiles) do
+        local src = love.image.newImageData(tilePng(blp))
+        if src:getWidth() == TILE_SIZE and src:getHeight() == TILE_SIZE then
+            slices[i] = src
+        else
+            local dst = love.image.newImageData(TILE_SIZE, TILE_SIZE, 'rgba8')
+            dst:paste(src, 0, 0, 0, 0, math.min(src:getWidth(), TILE_SIZE), math.min(src:getHeight(), TILE_SIZE))
+            slices[i] = dst
+        end
+    end
+    local img = LG.newArrayImage(slices, { mipmaps = true })
+    img:setFilter('linear', 'linear'); img:setWrap('repeat', 'repeat')
+    return img
+end
+
+-- bind.png: R/G/B/A = textureId слоёв 1..4 (нормализ id/tilesCount). textureId=0 валиден
+-- (нулевой тайл), поэтому число слоёв НЕ угадываем — берём из json.nLayers.
+-- -> iLayers (1-based индексы diffuse) + iNLayers
+local function chunkLayers(bind, cx, cy, tilesCount, nL)
+    local r, g, b, a = bind:getPixel(cx, cy)
+    return math.round(r * tilesCount) + 1, math.round(g * tilesCount) + 1,
+           math.round(b * tilesCount) + 1, math.round(a * tilesCount) + 1, nL
+end
+
+-- 16x16 чанков -> instanceMesh. nLayers[] из json (реальное число слоёв на чанк, индекс cy*16+cx)
+-- maskChunk — размер окна маски на чанк в текселях (из конвертера, не хардкод)
+local function buildInstances(bind, tilesCount, nLayers, maskChunk, tx, ty)
+    local mesh = LG.newMesh(INSTANCE_FMT, CHUNKS * CHUNKS, nil, 'static')
+    local n = 0
+    for cy = 0, CHUNKS - 1 do
+        for cx = 0, CHUNKS - 1 do
+            local L1, L2, L3, L4, nL = chunkLayers(bind, cx, cy, tilesCount, nLayers[cy * CHUNKS + cx + 1])
+            n = n + 1
+            mesh:setVertex(n, {
+                tx * TILE + cx * HSTEP * UNIT, ty * TILE + cy * HSTEP * UNIT,
+                cx * HSTEP,                    cy * HSTEP,         -- база вершины в текселях высот (0..128)
+                cx * maskChunk,                cy * maskChunk,     -- база окна маски в текселях
+                L1, L2, L3, L4, nL,
+            })
+        end
+    end
+    return mesh, n
+end
+
+-- names/placements тайла -> список { glb, isWmo, instance } с готовой движковой трансформой
+local function modelGlb(name)
+    return ('assets/converted/' .. name:gsub('\\', '/')):lower()
+end
+local function collectDoodads(out, names, placements, isWmo)
+    for _, p in ipairs(placements or {}) do
+        local name = names[p.nameId + 1]
+        if name then
+            out[#out+1] = { glb = modelGlb(name), isWmo = isWmo, instance = placeWorld(p) }
+        end
+    end
+end
+
+function M.import(dir)
+    local json = require('lib.json').decode(LF.read(dir .. '/terrain.json'))
+    local bind = love.image.newImageData(dir .. '/bind.png')
+    local mesh, count = buildInstances(bind, json.tilesCount, json.nLayers, json.maskChunk, json.coord[1], json.coord[2])
+
+    local doodads = {}
+    collectDoodads(doodads, json.doodadNames, json.doodadPlacements, false)
+    collectDoodads(doodads, json.wmoNames,    json.wmoPlacements,    true)
+
+    return {
+        heightTex    = loadHeight(dir),
+        maskTex      = loadMask(dir),
+        diffuse      = loadDiffuse(json.tiles),
+        instanceMesh = mesh,
+        count        = count,
+        doodads      = doodads,
+        grid         = json.grid,       -- размеры атласов из конвертера (не хардкод)
+        maskTile     = json.maskTile,
+        maskChunk    = json.maskChunk,
+    }
+end
+
+return M

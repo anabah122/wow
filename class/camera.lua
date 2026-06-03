@@ -19,7 +19,7 @@ function Camera:new(opts)
     c.speedMax  = 500
     c.lookSpeed = opts.lookSpeed or 0.002
     c.fov       = opts.fov       or math.rad(60)
-    c.near      = opts.near      or 0.1
+    c.near      = opts.near      or 1
     c.far       = opts.far       or 1024
 
     love.mouse.setRelativeMode(true)

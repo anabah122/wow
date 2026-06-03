@@ -1,11 +1,10 @@
 local importer = require 'importer.importer'
-local quat = require 'math.quat'
 
 local go = {}
 go.__index = go
 
 
--- args: { path, instances = { {x,y,z, ox,oy,oz}, ... } }
+-- args: { path, instances = { {x,y,z, qx,qy,qz,qw, scale}, ... } }
 function go:new(args)
 
     local self = setmetatable({}, go)
@@ -29,19 +28,22 @@ function go:buildInstances(instances)
     local data = {}
     for i, inst in ipairs(instances) do
         data[i] = {
-            inst[1], inst[2], inst[3], -- pos
-            quat:fromEuler(inst[4], inst[5], inst[6]):unpack() -- rot
+            inst[1], inst[2], inst[3],          -- pos
+            inst[4], inst[5], inst[6], inst[7], -- rot (готовый кватернион, посчитан офлайн)
+            inst[8] or 1,                       -- scale
         }
     end
 
     self.instanceMesh = love.graphics.newMesh({
         { 'InstancePos', 'float', 3 },
         { 'InstanceRot', 'float', 4 },
+        { 'InstanceScale', 'float', 1 },
     }, data, nil, 'static')
 
     for _, part in ipairs(self.parts) do
         part.mesh:attachAttribute('InstancePos', self.instanceMesh, 'perinstance')
         part.mesh:attachAttribute('InstanceRot', self.instanceMesh, 'perinstance')
+        part.mesh:attachAttribute('InstanceScale', self.instanceMesh, 'perinstance')
     end
 end
 
@@ -49,13 +51,17 @@ end
 
 function go:batchRegister(batcher)
     for _, part in ipairs(self.parts) do
-        batcher:add(part.mesh, part.material.texture, self.instanceCount)
+        if part.material and part.material.texture then
+            batcher:add(part.mesh, part.material.texture, self.instanceCount, part.material.blendMode, part.material.twoSided)
+        end
     end
 end
 
 function go:batchUnRegister(batcher)
     for _, part in ipairs(self.parts) do
-        batcher:remove(part.mesh, part.material.texture)
+        if not part.material then goto continue end
+        batcher:remove(part.mesh, part.material.texture, part.material.blendMode)
+        ::continue::
     end
 end
 

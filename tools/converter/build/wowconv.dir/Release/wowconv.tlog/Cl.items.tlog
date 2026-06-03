@@ -1,0 +1,9 @@
+C:\LOVE\WOW\tools\converter\capi.cpp;C:\LOVE\WOW\tools\converter\build\wowconv.dir\Release\capi.obj
+C:\LOVE\WOW\tools\converter\sink.cpp;C:\LOVE\WOW\tools\converter\build\wowconv.dir\Release\sink.obj
+C:\LOVE\WOW\tools\converter\gltf_writer.cpp;C:\LOVE\WOW\tools\converter\build\wowconv.dir\Release\gltf_writer.obj
+C:\LOVE\WOW\tools\converter\writers2.cpp;C:\LOVE\WOW\tools\converter\build\wowconv.dir\Release\writers2.obj
+C:\LOVE\WOW\wowee\src\pipeline\m2_loader.cpp;C:\LOVE\WOW\tools\converter\build\wowconv.dir\Release\m2_loader.obj
+C:\LOVE\WOW\wowee\src\pipeline\wmo_loader.cpp;C:\LOVE\WOW\tools\converter\build\wowconv.dir\Release\wmo_loader.obj
+C:\LOVE\WOW\wowee\src\pipeline\adt_loader.cpp;C:\LOVE\WOW\tools\converter\build\wowconv.dir\Release\adt_loader.obj
+C:\LOVE\WOW\wowee\src\pipeline\blp_loader.cpp;C:\LOVE\WOW\tools\converter\build\wowconv.dir\Release\blp_loader.obj
+C:\LOVE\WOW\wowee\src\core\logger.cpp;C:\LOVE\WOW\tools\converter\build\wowconv.dir\Release\logger.obj

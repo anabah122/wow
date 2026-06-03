@@ -1,17 +1,20 @@
 {
   "permissions": {
     "allow": [
-      "Read(//c/LOVE/cubach/importer/formats/**)",
-      "Read(//c/LOVE/cubach/**)",
+      "Bash",
+      "PowerShell",
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
       "WebSearch",
-      "Bash(python -c \"from PIL import Image; img=Image.open\\(r'c:/LOVE/WOW/assets/maps/1.png'\\); print\\('1.png size:', img.size\\)\")",
-      "Bash(python -c ' *)",
-      "Bash(python -c \"from PIL import Image; im = Image.open\\('c:/LOVE/WOW/assets/maps/0_0.png'\\); print\\(im.size\\)\")",
-      "WebFetch(domain:wowdev.wiki)",
-      "Bash([ -f \"$f\" ])",
-      "WebFetch(domain:docs.rs)",
-      "Bash(luajit -bl class/terrainImporter.lua)",
-      "Bash(luajit -e \"local f,e=loadfile\\('class/terrainImporter.lua'\\) print\\(f and 'syntax ok' or e\\)\")"
+      "WebFetch",
+      "Bash([ -s \"$f\" ])"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\pcmaster\\.claude\\projects\\c--LOVE-WOW\\memory",
+      "C:\\WoWCore"
     ]
   }
 }

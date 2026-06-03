@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="C:\LOVE\WOW\tools\converter\build\CMakeFiles\9f8ea50413ff5767a45ef8b53b2b3ae3\generate.stamp.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{95EB64C1-E511-3C15-B1F9-7C0F33546E0B}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

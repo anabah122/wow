@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"C:/LOVE/WOW/tools/converter/build/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
