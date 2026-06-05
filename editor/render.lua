@@ -7,7 +7,7 @@ local CHUNK = dims.CHUNK
 local BLOCK = dims.BLOCK
 local SIZE  = dims.SIZE
 
-local shader = LG.newShader('shader/terrain.glsl')
+local shader = LG.newShader('shader/editorTerrain.glsl')
 
 -- per-instance только позиция чанка; индексы материалов читаются из карты в шейдере
 local INSTANCE_FMT = {
@@ -39,7 +39,7 @@ function render:draw(camera, block, tiles, matCount)
     shader:send('uBlockOrigin', { -SIZE / 2, -SIZE / 2 })   -- блок вокруг нуля
     shader:send('uMatCount', matCount or 1)
     shader:send('heightmap', block.heightTex)
-    shader:send('materialmap', block.materialTex)
+    shader:send('weights', block.weightArray)
     shader:send('matIndexMap', block.matIndexTex)
     if tiles then shader:send('tiles', tiles) end
     LG.drawInstanced(self.mesh, BLOCK * BLOCK)
