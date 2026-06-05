@@ -1,3 +1,0 @@
-C:/LOVE/WOW/tools/converter/build/CMakeFiles/wowconv.dir
-C:/LOVE/WOW/tools/converter/build/CMakeFiles/ALL_BUILD.dir
-C:/LOVE/WOW/tools/converter/build/CMakeFiles/ZERO_CHECK.dir
