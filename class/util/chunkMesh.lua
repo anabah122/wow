@@ -1,18 +1,17 @@
--- генератор плоской сетки 9x9 для инстансинга чанков террейна.
--- VertexPosition — локальная XZ в мировом масштабе (0..MCNK размер, шаг UNIT).
--- VertexTexCoord — нормализованный grid 0..1 для сэмпла атласа высот.
--- мировое смещение чанка и окно в атласе даёт per-instance буфер.
+-- генератор плоской сетки чанка для инстансинга террейна.
+-- VertexPosition — локальная XZ ячейки (0..CHUNK).
+-- VertexTexCoord — нормализованный grid 0..1 для сэмпла карты высот.
 
-local OUTER = 9                -- вершин на сторону MCNK
-local UNIT  = 33.33333 / 8     -- шаг вершины (yard)
+local CHUNK = require('class.util.dims').CHUNK   -- ячеек на сторону чанка
+local OUTER = CHUNK + 1                          -- вершин на сторону
 
 local function generateChunkMesh()
     local verts = {}
     for row = 0, OUTER - 1 do
         for col = 0, OUTER - 1 do
             verts[#verts+1] = {
-                col * UNIT, row * UNIT,                  -- позиция XZ (мир, локально)
-                col / (OUTER - 1), row / (OUTER - 1),    -- grid 0..1 для атласа
+                col, row,                                -- локальная позиция XZ
+                col / (OUTER - 1), row / (OUTER - 1),    -- grid 0..1
             }
         end
     end
@@ -28,7 +27,7 @@ local function generateChunkMesh()
     end
 
     local fmt = {
-        { 'VertexPosition', 'float', 2 },  -- локальная XZ в ярдах
+        { 'VertexPosition', 'float', 2 },  -- локальная XZ
         { 'VertexTexCoord', 'float', 2 },  -- grid 0..1
     }
     local mesh = LG.newMesh(fmt, verts, 'triangles', 'static')

@@ -7,16 +7,8 @@
 -- indices   : array of ints (1-based), nil if not indexed
 -- attributes: { position=true, normal=true, texcoord=true } presence flags
 
---[=[
-    local path       = args.path
-    local withMesh   = args.mesh or true
-    local withTex    = args.tex  or true
-    local anisotropy = args.anisotropy or 1
-]=]
-
 local ffi      = require "ffi"
 local matClass = require "math.mat4"
-local texLoader = require "importer.texture"
 
 local gltf = {}
 
@@ -250,9 +242,9 @@ end
 
 -- ── main load ─────────────────────────────────────────────────────────────────
 function gltf.load(args)
-    local path       = args.path
-    local withMesh   = args.mesh or true
-    local withTex    = args.tex  or true
+    local path     = args.path
+    local withMesh   = args.mesh or false
+    local withTex    = args.tex  or false
     local anisotropy = args.anisotropy or 1
 
     local data = read_file(path)
@@ -380,8 +372,6 @@ function gltf.load(args)
                     entry.material = {
                         name      = mat.name,
                         baseColor = pbr.baseColorFactor or {1,1,1,1},
-                        blendMode = mat.extras and mat.extras.blendMode or 0,  -- EGxBlend, см. doc/render.md
-                        twoSided  = mat.doubleSided or false, -- стандартное glTF поле (TwoSided флаг) -> cull none
                     }
                     if withTex and pbr.baseColorTexture then
                         local tex_idx = pbr.baseColorTexture.index + 1
@@ -390,35 +380,19 @@ function gltf.load(args)
                             local img_json = (j.images or {})[tex_json.source + 1]
                             if img_json then
                                 if img_json.uri then
-                                    -- uri относителен папке glb (стандарт glTF); нормализуем ../ посегментно
-                                    -- (regex-коллапс ломался на нескольких ../ подряд)
                                     local dir = path:match("(.*[/\\])") or ""
-                                    local p = (dir .. img_json.uri):gsub("\\", "/")
-                                    local out = {}
-                                    for seg in p:gmatch("[^/]+") do
-                                        if seg == ".." then out[#out] = nil
-                                        elseif seg ~= "." then out[#out+1] = seg end
-                                    end
-                                    p = table.concat(out, "/")
-                                    entry.material.texturePath = p
-                                    entry.material.texture = texLoader.import(
-                                        entry.material.texturePath,
-                                        { anisotropy = anisotropy, wrap = "repeat", mipmaps = true })
+                                    entry.material.texturePath = dir .. img_json.uri
+                                    entry.material.texture = love.graphics.newImage(entry.material.texturePath, { mipmaps = true })
+                                    entry.material.texture:setFilter("linear", "linear", anisotropy)
                                 elseif img_json.bufferView then
-                                    -- embedded в glb: ключ = "<glbPath>#<texIndex>"
-                                    local key = path .. "#" .. tex_idx
-                                    local tex = texLoader.get(key)
-                                    if not tex then
-                                        local bv  = j.bufferViews[img_json.bufferView + 1]
-                                        local buf = buffers[bv.buffer + 1]
-                                        local bytes = buf:sub((bv.byteOffset or 0)+1, (bv.byteOffset or 0)+bv.byteLength)
-                                        local fd  = love.filesystem.newFileData(bytes, img_json.name or "tex")
-                                        tex = love.graphics.newImage(love.image.newImageData(fd), { mipmaps = true })
-                                        texLoader.put(key, tex)
-                                    end
-                                    tex:setFilter("linear", "linear", anisotropy)
-                                    tex:setWrap("repeat")
-                                    entry.material.texture = tex
+                                    local raw = get_accessor_data(j, buffers, img_json.bufferView)
+                                    -- bufferView directly, not accessor — read manually
+                                    local bv  = j.bufferViews[img_json.bufferView + 1]
+                                    local buf = buffers[bv.buffer + 1]
+                                    local bytes = buf:sub((bv.byteOffset or 0)+1, (bv.byteOffset or 0)+bv.byteLength)
+                                    local fd = love.filesystem.newFileData(bytes, img_json.name or "tex")
+                                    entry.material.texture = love.graphics.newImage(love.image.newImageData(fd), { mipmaps = true })
+                                    entry.material.texture:setFilter("linear", "linear", anisotropy)
                                 end
                             end
                         end
@@ -450,8 +424,6 @@ end
 
 -- ── convenience: build love.Mesh from a loaded entry ─────────────────────────
 -- call inside love.load or love.draw
--- запекаем node-трансформ части в вершины: все парты в едином пространстве модели,
--- тогда поворот инстанса (qrot вокруг 0,0,0) идёт вокруг ориджина всей модели, а не центра парта.
 function gltf.to_mesh(entry, usage)
     usage = usage or "static"
     local fmt = {
@@ -459,17 +431,7 @@ function gltf.to_mesh(entry, usage)
         { "VertexNormal",   "float", 3 },
         { "VertexTexCoord", "float", 2 },
     }
-    local mtx = entry.transform
-    local verts = entry.vertices
-    if mtx then
-        verts = {}
-        for i, v in ipairs(entry.vertices) do
-            local px, py, pz = mtx:mulVec4(v[1], v[2], v[3], 1)
-            local nx, ny, nz = mtx:mulVec4(v[4], v[5], v[6], 0)
-            verts[i] = { px, py, pz, nx, ny, nz, v[7], v[8] }
-        end
-    end
-    local m = love.graphics.newMesh(fmt, verts, "triangles", usage)
+    local m = love.graphics.newMesh(fmt, entry.vertices, "triangles", usage)
     if entry.indices then
         m:setVertexMap(entry.indices)
     end

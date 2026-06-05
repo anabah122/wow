@@ -1,49 +1,49 @@
--- террейн из нескольких ADT. НЕ читает диск — всё грузит terrainImporter.
--- держит готовые ADT-ресурсы + GO-инстансы doodad/wmo, рисует чанки и пассы моделей.
-local generateChunkMesh = require 'class.util.chunkMesh'
+-- террейн из блоков чанков. НЕ читает диск — всё грузит terrainImporter.
+-- держит готовые ресурсы блоков + GO-инстансы моделей, рисует чанки и модели.
 local terrainImporter   = require 'class.terrainImporter'
+local dims              = require 'class.util.dims'
 local Go                = require 'class.go'
 local Batcher           = require 'class.batcher'
 
-local terrainShader = LG.newShader('shader/wow.glsl')
-local doodadShader  = LG.newShader('shader/doodad.glsl')
+local terrainShader = LG.newShader('shader/terrain.glsl')
+local modelShader   = LG.newShader('shader/model.glsl')
+
+local BLOCK_SIZE = dims.BLOCK * dims.CHUNK   -- размер блока в ячейках
 
 local Terrain = {}
 Terrain.__index = Terrain
 
 function Terrain:new()
     local self = setmetatable({}, Terrain)
-    self.chunkMesh  = generateChunkMesh()
-    self.adts       = {}                -- готовые ресурсы ADT от импортера
-    self.gos        = {}
-    self.batcher    = Batcher:new()     -- doodad'ы
-    self.wmoBatcher = Batcher:new()     -- WMO («глубже»)
-    self.doodadInst  = {}               -- glb -> { {x,y,z,qx,qy,qz,qw,scale}, ... }
-    self.doodadIsWmo = {}
+    self.blocks    = {}              -- готовые ресурсы блоков
+    self.gos       = {}
+    self.batcher   = Batcher:new()
+    self.modelInst = {}             -- glb -> { {x,y,z,qx,qy,qz,qw,scale}, ... }
     return self
 end
 
-function Terrain:loadAdt(dir)
-    local a = terrainImporter.import(dir)
-    self.adts[#self.adts+1] = a
+-- ox,oy — смещение блока в мире (ячейки)
+function Terrain:loadBlock(dir, ox, oy)
+    local b = terrainImporter.import(dir)
+    b.ox, b.oy = ox or 0, oy or 0
+    self.blocks[#self.blocks+1] = b
 
-    for _, d in ipairs(a.doodads) do
-        local list = self.doodadInst[d.glb]
-        if not list then list = {}; self.doodadInst[d.glb] = list end
-        list[#list+1] = d.instance
-        self.doodadIsWmo[d.glb] = d.isWmo
+    for glb, instances in pairs(b.models) do
+        local list = self.modelInst[glb]
+        if not list then list = {}; self.modelInst[glb] = list end
+        for _, inst in ipairs(instances) do list[#list+1] = inst end
     end
 end
 
--- загрузить ВСЕ тайлы из папки карты (подпапки <map>_<tx>_<ty>).
--- центр блока (средние tx,ty) возвращаем для постановки камеры.
+-- загрузить все блоки из папки карты (подпапки <map>_<tx>_<ty>).
+-- центр блока возвращаем для постановки камеры.
 function Terrain:loadDir(dir)
     local minx, miny, maxx, maxy
     for _, name in ipairs(LF.getDirectoryItems(dir)) do
         local tx, ty = name:match('_(%d+)_(%d+)$')
-        if tx and LF.getInfo(dir .. '/' .. name .. '/terrain.json') then
+        if tx and LF.getInfo(dir .. '/' .. name .. '/chunk.json') then
             tx, ty = tonumber(tx), tonumber(ty)
-            self:loadAdt(dir .. '/' .. name)
+            self:loadBlock(dir .. '/' .. name, tx * BLOCK_SIZE, ty * BLOCK_SIZE)
             minx = math.min(minx or tx, tx); maxx = math.max(maxx or tx, tx)
             miny = math.min(miny or ty, ty); maxy = math.max(maxy or ty, ty)
         end
@@ -52,19 +52,18 @@ function Terrain:loadDir(dir)
     return (minx + maxx) / 2, (miny + maxy) / 2
 end
 
--- создать GO из собранных инстансов (после всех loadAdt)
+-- создать GO из собранных инстансов (после всех loadBlock)
 function Terrain:build()
     local made, miss = 0, 0
-    for glb, instances in pairs(self.doodadInst) do
+    for glb, instances in pairs(self.modelInst) do
         if LF.getInfo(glb) then
-            local batcher = self.doodadIsWmo[glb] and self.wmoBatcher or self.batcher
-            self.gos[#self.gos+1] = Go:new{ path = glb, batcher = batcher, instances = instances }
+            self.gos[#self.gos+1] = Go:new{ path = glb, batcher = self.batcher, instances = instances }
             made = made + 1
         else
             miss = miss + 1
         end
     end
-    print(string.format('terrain: %d adts, doodads %d ok / %d missing glb', #self.adts, made, miss))
+    print(string.format('terrain: %d blocks, models %d ok / %d missing', #self.blocks, made, miss))
 end
 
 function Terrain:update(dt) end
@@ -72,41 +71,25 @@ function Terrain:update(dt) end
 function Terrain:draw(camera)
     local vp = camera:viewproj()
 
-    -- террейн: каждый ADT своими текстурами
     LG.setShader(terrainShader)
     LG.setMeshCullMode('back')
     LG.setBlendMode('replace')
     LG.setDepthMode('lequal', true)
     terrainShader:send('viewproj', vp)
-    terrainShader:send('texTile', 8)
-    for _, a in ipairs(self.adts) do
-        terrainShader:send('hGrid',  { a.grid, a.grid })          -- размеры атласов per-ADT (из конвертера)
-        terrainShader:send('mGrid',  { a.maskTile, a.maskTile })
-        terrainShader:send('mChunk', a.maskChunk)
-        terrainShader:send('heightmap', a.heightTex)
-        terrainShader:send('maskmap', a.maskTex)
-        terrainShader:send('diffuse', a.diffuse)
-        for _, attr in ipairs{ 'iWorldXZ','iHeightUV','iMaskUV','iLayers','iNLayers' } do
-            self.chunkMesh:attachAttribute(attr, a.instanceMesh, 'perinstance')
-        end
-        LG.drawInstanced(self.chunkMesh, a.count)
+    terrainShader:send('uBlockSize', BLOCK_SIZE)
+    for _, b in ipairs(self.blocks) do
+        terrainShader:send('uBlockOrigin', { b.ox, b.oy })
+        terrainShader:send('uHeightTexel', { 1 / b.heightTex:getWidth(), 1 / b.heightTex:getHeight() })
+        terrainShader:send('heightmap', b.heightTex)
+        terrainShader:send('materialmap', b.materialTex)
+        LG.drawInstanced(b.chunkMesh, b.count)
     end
 
-    -- doodad-пассы (см. doc/render.md)
-    LG.setShader(doodadShader)
-    doodadShader:send('viewproj', vp)
-    local function drawBatcher(batcher)
-        LG.setBlendMode('replace'); LG.setDepthMode('lequal', true)
-        doodadShader:send('uAlphaMode', 0.0); batcher:drawPass(1)   -- opaque: альфа игнор
-        LG.setBlendMode('alpha')
-        doodadShader:send('uAlphaMode', 1.0); batcher:drawPass(2)   -- cutout: discard
-        LG.setDepthMode('lequal', false)                            -- transparent
-        doodadShader:send('uAlphaMode', 2.0)
-        LG.setBlendMode('alpha'); batcher:drawPass(4)
-        LG.setBlendMode('add');   batcher:drawPass(5)
-    end
-    drawBatcher(self.wmoBatcher)
-    drawBatcher(self.batcher)
+    LG.setShader(modelShader)
+    LG.setBlendMode('alpha')
+    LG.setDepthMode('lequal', true)
+    modelShader:send('viewproj', vp)
+    self.batcher:draw()
 
     LG.setMeshCullMode('back')
     LG.setBlendMode('alpha')

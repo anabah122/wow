@@ -14,6 +14,13 @@ function FpsMean:add(v)
     end
 end
 
+function FpsMean:step()
+    table.insert(self,1,LT.realFPS)
+    if #self > size then 
+        table.remove( self )
+    end
+end
+
 function FpsMean:get()
     local fps = 0 
     for _,v in ipairs( self ) do fps=fps + v end
