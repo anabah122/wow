@@ -61,6 +61,7 @@ local function slotFor(ind, mat)
     return nil
 end
 
+<<<<<<< HEAD
 -- вес материала mat в текселе ПО ИНДЕКСУ (а не по слоту): слот ищется в чанке текселя.
 -- база (слот 1) = остаток 1-(r+g+b). если mat в чанке нет — 0.
 function Block:materialWeight(tx, ty, mat)
@@ -80,6 +81,10 @@ end
 -- слот для mat заводится в чанке (как при покраске) -> в соседних чанках слоты могут быть разными,
 -- но интерполяция идёт по материалу, поэтому переход через границу непрерывен.
 function Block:setMaterialWeight(tx, ty, mat, target)
+=======
+-- покрасить тексель материалом mat весом w. база — слот 1 (в карту не пишется), слои 2/3/4 в RGB.
+function Block:paint(tx, ty, mat, w)
+>>>>>>> 417bc18d63b9771af644e1ea3362a2657ae64051
     local chunk, cx, cy = self:chunkAt(tx, ty)
     local ind = self.matInd[chunk]
     local slot = slotFor(ind, mat)
@@ -90,11 +95,20 @@ function Block:setMaterialWeight(tx, ty, mat, target)
         ind[3] / self.matCount, ind[4] / self.matCount)
     self.iDirty = true
 
+<<<<<<< HEAD
     target = math.min(1, target)
     local px = { self.material:getPixel(tx, ty) }   -- r,g,b = слои 2,3,4 (база = остаток)
     -- взаимоисключение: красимый слой растёт до target, остальные гаснут на (1-target).
     for i = 1, 3 do px[i] = px[i] * (1 - target) end
     if slot > 1 then px[slot - 1] = px[slot - 1] + target end  -- для базы ничего не добавляем -> она остаток
+=======
+    -- взаимоисключение: красимый слой растёт по w, остальные гаснут на (1-w).
+    -- слои 2/3/4 в RGB, база (слот 1) — остаток 1-(r+g+b). при слое=1 база=0; при базе=1 слои=0.
+    w = math.min(1, w)
+    local px = { self.material:getPixel(tx, ty) }   -- r,g,b = слои 2,3,4
+    for i = 1, 3 do px[i] = px[i] * (1 - w) end      -- гасим все слои
+    if slot > 1 then px[slot - 1] = px[slot - 1] + w end  -- красимый слой (для базы ничего не добавляем -> она остаток)
+>>>>>>> 417bc18d63b9771af644e1ea3362a2657ae64051
     self.material:setPixel(tx, ty, px[1], px[2], px[3], 1)
     self.mDirty = true
     return true

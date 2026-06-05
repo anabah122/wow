@@ -60,12 +60,19 @@ function brush.flatten(block, cx, cy, r, strength, level, dt)
     end)
 end
 
+<<<<<<< HEAD
 -- материал: тянем вес mat к цели от falloff. интерполяция ПО МАТЕРИАЛУ, не по слоту,
 -- поэтому на стыке двух чанков (разные индексы/слоты) переход непрерывен — нет шва.
 function brush.paint(block, cx, cy, r, strength, mat, dt)
     disc(cx, cy, r, HSIZE, function(x, y, f)
         local cur = block:materialWeight(x, y, mat)
         block:setMaterialWeight(x, y, mat, cur + (1 - cur) * math.min(1, strength * f * dt))
+=======
+-- материал (карта весов HSIZE, как высота)
+function brush.paint(block, cx, cy, r, strength, mat, dt)
+    disc(cx, cy, r, HSIZE, function(x, y, f)
+        block:paint(x, y, mat, strength * f * dt)
+>>>>>>> 417bc18d63b9771af644e1ea3362a2657ae64051
     end)
 end
 
