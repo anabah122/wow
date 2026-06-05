@@ -16,22 +16,34 @@ function Block:new(matCount)
     self.matCount = math.max(1, matCount or 1)   -- для нормировки индексов в карте
 
     self.height   = love.image.newImageData(HSIZE, HSIZE, 'r32f')   -- per-vertex (SIZE+1)
-    self.material = love.image.newImageData(HSIZE, HSIZE, 'rgba8')  -- веса 4 слоёв, как высота (HSIZE)
     self.matIndex = love.image.newImageData(BLOCK, BLOCK, 'rgba8')  -- 1 пиксель = чанк, RGBA = 4 индекса/total
     self.heightF  = ffi.cast('float*', self.height:getFFIPointer())
 
-    -- matInd[chunk] = {i1,i2,i3,i4} индексы материалов (0 = пусто)
+    -- веса материалов: ОДНА альфа-карта на материал (глобальный индекс = слой ArrayImage).
+    -- слой i = вес материала i по всему блоку -> на стыке чанков тот же слой -> бесшовно.
+    -- слой материала-базы (1) не редактируется: база = остаток 1-(сумма накладок) в шейдере.
+    self.weight = {}          -- weight[m] = ImageData r8 (HSIZE), 0 по умолчанию
+    for m = 1, self.matCount do
+        self.weight[m] = love.image.newImageData(HSIZE, HSIZE, 'r8')
+    end
+
+    -- matInd[chunk] = {i1,i2,i3,i4} глобальные индексы материалов в чанке.
+    -- слот 1 = база (материал 1, проступает где остаток), слоты 2..4 — накладки (0 = пусто).
     self.matInd = {}
-    for c = 1, BLOCK * BLOCK do self.matInd[c] = { 0, 0, 0, 0 } end
+    for c = 1, BLOCK * BLOCK do self.matInd[c] = { 1, 0, 0, 0 } end
+    for cy = 0, BLOCK - 1 do for cx = 0, BLOCK - 1 do
+        self.matIndex:setPixel(cx, cy, 1 / self.matCount, 0, 0, 1)   -- старт: база = материал 1
+    end end
 
     self.heightTex   = love.graphics.newImage(self.height)
-    self.materialTex = love.graphics.newImage(self.material)
     self.matIndexTex = love.graphics.newImage(self.matIndex)
+    self.weightArray = love.graphics.newArrayImage(self.weight)
     self.heightTex:setFilter('linear', 'linear');   self.heightTex:setWrap('clamp')
-    self.materialTex:setFilter('linear', 'linear'); self.materialTex:setWrap('clamp')
     self.matIndexTex:setFilter('nearest', 'nearest'); self.matIndexTex:setWrap('clamp')
+    self.weightArray:setFilter('linear', 'linear');  self.weightArray:setWrap('clamp')
 
-    self.hDirty, self.mDirty, self.iDirty = false, false, false
+    self.hDirty, self.iDirty = false, false
+    self.wDirty = {}          -- wDirty[m] = слой требует replacePixels
     return self
 end
 
@@ -53,71 +65,45 @@ function Block:chunkAt(tx, ty)
     return cy * BLOCK + cx + 1, cx, cy
 end
 
--- слот материала mat в чанке. 1=база (кроет весь чанк), 2/3/4=слои поверх (RGB).
--- материал занимает первый свободный слот. nil если все 4 заняты другими.
-local function slotFor(ind, mat)
-    for i = 1, 4 do if ind[i] == mat then return i end end
-    for i = 1, 4 do if ind[i] == 0   then ind[i] = mat; return i end end
+-- зарезервировать слот накладки mat в чанке (слоты 2..4; слот 1 = база, материал 1).
+-- nil если 3 слота-накладки заняты другими материалами.
+local function reserveSlot(ind, mat)
+    for i = 2, 4 do if ind[i] == mat then return true end end
+    for i = 2, 4 do if ind[i] == 0   then ind[i] = mat; return true end end
     return nil
 end
 
-<<<<<<< HEAD
--- вес материала mat в текселе ПО ИНДЕКСУ (а не по слоту): слот ищется в чанке текселя.
--- база (слот 1) = остаток 1-(r+g+b). если mat в чанке нет — 0.
+-- вес материала mat в текселе: читаем прямо из слоя материала (глобальный индекс).
 function Block:materialWeight(tx, ty, mat)
-    local chunk = self:chunkAt(tx, ty)
-    local ind = self.matInd[chunk]
-    local r, g, b = self.material:getPixel(tx, ty)
-    for i = 1, 4 do
-        if ind[i] == mat then
-            if i == 1 then return 1 - (r + g + b) end
-            return ({ r, g, b })[i - 1]
-        end
-    end
-    return 0
+    return (self.weight[mat]:getPixel(tx, ty))
 end
 
--- выставить вес материала mat в текселе равным target (0..1), согласованно гася остальные слои.
--- слот для mat заводится в чанке (как при покраске) -> в соседних чанках слоты могут быть разными,
--- но интерполяция идёт по материалу, поэтому переход через границу непрерывен.
+-- выставить вес материала mat в текселе равным target (0..1). пишем ТОЛЬКО слой mat,
+-- остальные не трогаем -> нет взаимного гашения и нет проступающей базы между накладками.
+-- замещение даёт шейдер: накладки рисуются поверх базы по своей альфе в порядке слотов.
 function Block:setMaterialWeight(tx, ty, mat, target)
-=======
--- покрасить тексель материалом mat весом w. база — слот 1 (в карту не пишется), слои 2/3/4 в RGB.
-function Block:paint(tx, ty, mat, w)
->>>>>>> 417bc18d63b9771af644e1ea3362a2657ae64051
+    if mat == 1 then return false end               -- базу не красят (она фон)
     local chunk, cx, cy = self:chunkAt(tx, ty)
     local ind = self.matInd[chunk]
-    local slot = slotFor(ind, mat)
-    if not slot then return false end
+    if not reserveSlot(ind, mat) then return false end
 
     self.matIndex:setPixel(cx, cy,
         ind[1] / self.matCount, ind[2] / self.matCount,
         ind[3] / self.matCount, ind[4] / self.matCount)
     self.iDirty = true
 
-<<<<<<< HEAD
-    target = math.min(1, target)
-    local px = { self.material:getPixel(tx, ty) }   -- r,g,b = слои 2,3,4 (база = остаток)
-    -- взаимоисключение: красимый слой растёт до target, остальные гаснут на (1-target).
-    for i = 1, 3 do px[i] = px[i] * (1 - target) end
-    if slot > 1 then px[slot - 1] = px[slot - 1] + target end  -- для базы ничего не добавляем -> она остаток
-=======
-    -- взаимоисключение: красимый слой растёт по w, остальные гаснут на (1-w).
-    -- слои 2/3/4 в RGB, база (слот 1) — остаток 1-(r+g+b). при слое=1 база=0; при базе=1 слои=0.
-    w = math.min(1, w)
-    local px = { self.material:getPixel(tx, ty) }   -- r,g,b = слои 2,3,4
-    for i = 1, 3 do px[i] = px[i] * (1 - w) end      -- гасим все слои
-    if slot > 1 then px[slot - 1] = px[slot - 1] + w end  -- красимый слой (для базы ничего не добавляем -> она остаток)
->>>>>>> 417bc18d63b9771af644e1ea3362a2657ae64051
-    self.material:setPixel(tx, ty, px[1], px[2], px[3], 1)
-    self.mDirty = true
+    self.weight[mat]:setPixel(tx, ty, math.max(0, math.min(1, target)), 0, 0, 1)
+    self.wDirty[mat] = true
     return true
 end
 
 function Block:refresh()
-    if self.hDirty then self.heightTex:replacePixels(self.height);     self.hDirty = false end
-    if self.mDirty then self.materialTex:replacePixels(self.material); self.mDirty = false end
+    if self.hDirty then self.heightTex:replacePixels(self.height);   self.hDirty = false end
     if self.iDirty then self.matIndexTex:replacePixels(self.matIndex); self.iDirty = false end
+    for m in pairs(self.wDirty) do
+        self.weightArray:replacePixels(self.weight[m], m)   -- обновить слой материала m
+    end
+    self.wDirty = {}
 end
 
 Block.SIZE, Block.HSIZE = SIZE, HSIZE
