@@ -1,0 +1,219 @@
+{
+	"accessors": [
+		{
+			"bufferView": 0,
+			"componentType": 5126,
+			"count": 646,
+			"max": [
+				0.3238554894924164,
+				0.015205810777842999,
+				0.3643820881843567
+			],
+			"min": [
+				-0.1869099885225296,
+				-0.4501189589500427,
+				-0.3178955614566803
+			],
+			"type": "VEC3"
+		},
+		{
+			"bufferView": 1,
+			"componentType": 5126,
+			"count": 646,
+			"type": "VEC3"
+		},
+		{
+			"bufferView": 2,
+			"componentType": 5126,
+			"count": 646,
+			"type": "VEC2"
+		},
+		{
+			"bufferView": 3,
+			"componentType": 5126,
+			"count": 646,
+			"type": "VEC2"
+		},
+		{
+			"bufferView": 4,
+			"componentType": 5121,
+			"count": 646,
+			"type": "VEC4"
+		},
+		{
+			"bufferView": 5,
+			"componentType": 5126,
+			"count": 646,
+			"type": "VEC4"
+		},
+		{
+			"bufferView": 6,
+			"byteOffset": 0,
+			"componentType": 5123,
+			"count": 2088,
+			"type": "SCALAR"
+		},
+		{
+			"bufferView": 6,
+			"byteOffset": 0,
+			"componentType": 5123,
+			"count": 2088,
+			"type": "SCALAR"
+		},
+		{
+			"bufferView": 6,
+			"byteOffset": 4176,
+			"componentType": 5123,
+			"count": 36,
+			"type": "SCALAR"
+		}
+	],
+	"asset": {
+		"generator": "wowconv",
+		"version": "2.0"
+	},
+	"bufferViews": [
+		{
+			"buffer": 0,
+			"byteLength": 7752,
+			"byteOffset": 0,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 7752,
+			"byteOffset": 7752,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 5168,
+			"byteOffset": 15504,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 5168,
+			"byteOffset": 20672,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 2584,
+			"byteOffset": 25840,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 10336,
+			"byteOffset": 28424,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 4248,
+			"byteOffset": 38760,
+			"target": 34963
+		}
+	],
+	"buffers": [
+		{
+			"byteLength": 43008,
+			"uri": "helm_plate_raidwarrior_h_01_gnf.bin"
+		}
+	],
+	"images": [],
+	"materials": [
+		{
+			"doubleSided": false,
+			"extras": {
+				"blendMode": 0,
+				"flags": 0
+			},
+			"pbrMetallicRoughness": {
+				"metallicFactor": 0,
+				"roughnessFactor": 1
+			}
+		},
+		{
+			"doubleSided": false,
+			"extras": {
+				"blendMode": 2,
+				"flags": 16
+			},
+			"pbrMetallicRoughness": {
+				"metallicFactor": 0,
+				"roughnessFactor": 1
+			}
+		},
+		{
+			"doubleSided": false,
+			"extras": {
+				"blendMode": 2,
+				"flags": 16
+			},
+			"pbrMetallicRoughness": {
+				"metallicFactor": 0,
+				"roughnessFactor": 1
+			}
+		}
+	],
+	"meshes": [
+		{
+			"name": "Helm_Plate_RaidWarrior_H_01_GnF",
+			"primitives": [
+				{
+					"attributes": {
+						"JOINTS_0": 4,
+						"NORMAL": 1,
+						"POSITION": 0,
+						"TEXCOORD_0": 2,
+						"TEXCOORD_1": 3,
+						"WEIGHTS_0": 5
+					},
+					"indices": 6,
+					"material": 0
+				},
+				{
+					"attributes": {
+						"JOINTS_0": 4,
+						"NORMAL": 1,
+						"POSITION": 0,
+						"TEXCOORD_0": 2,
+						"TEXCOORD_1": 3,
+						"WEIGHTS_0": 5
+					},
+					"indices": 7,
+					"material": 1
+				},
+				{
+					"attributes": {
+						"JOINTS_0": 4,
+						"NORMAL": 1,
+						"POSITION": 0,
+						"TEXCOORD_0": 2,
+						"TEXCOORD_1": 3,
+						"WEIGHTS_0": 5
+					},
+					"indices": 8,
+					"material": 2
+				}
+			]
+		}
+	],
+	"nodes": [
+		{
+			"mesh": 0,
+			"name": "Helm_Plate_RaidWarrior_H_01_GnF"
+		}
+	],
+	"scene": 0,
+	"scenes": [
+		{
+			"nodes": [
+				0
+			]
+		}
+	],
+	"textures": []
+}

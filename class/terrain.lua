@@ -97,11 +97,11 @@ function Terrain:draw(camera)
     doodadShader:send('viewproj', vp)
     local function drawBatcher(batcher)
         LG.setBlendMode('replace'); LG.setDepthMode('lequal', true)
-        doodadShader:send('uAlphaMode', 0.0)
-        batcher:drawPass(1)                                  -- opaque
-        LG.setBlendMode('alpha'); batcher:drawPass(2)        -- cutout
-        LG.setDepthMode('lequal', false)                     -- transparent
-        doodadShader:send('uAlphaMode', 1.0)
+        doodadShader:send('uAlphaMode', 0.0); batcher:drawPass(1)   -- opaque: альфа игнор
+        LG.setBlendMode('alpha')
+        doodadShader:send('uAlphaMode', 1.0); batcher:drawPass(2)   -- cutout: discard
+        LG.setDepthMode('lequal', false)                            -- transparent
+        doodadShader:send('uAlphaMode', 2.0)
         LG.setBlendMode('alpha'); batcher:drawPass(4)
         LG.setBlendMode('add');   batcher:drawPass(5)
     end

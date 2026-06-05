@@ -1,0 +1,107 @@
+{
+	"accessors": [
+		{
+			"bufferView": 0,
+			"componentType": 5126,
+			"count": 134,
+			"max": [
+				198.26490783691406,
+				80.81355285644531,
+				214.4461669921875
+			],
+			"min": [
+				-198.26454162597656,
+				-80.81356048583984,
+				-214.44619750976563
+			],
+			"type": "VEC3"
+		},
+		{
+			"bufferView": 1,
+			"componentType": 5126,
+			"count": 134,
+			"type": "VEC3"
+		},
+		{
+			"bufferView": 2,
+			"componentType": 5126,
+			"count": 134,
+			"type": "VEC2"
+		},
+		{
+			"bufferView": 3,
+			"byteOffset": 0,
+			"componentType": 5123,
+			"count": 204,
+			"type": "SCALAR"
+		}
+	],
+	"asset": {
+		"generator": "wowconv",
+		"version": "2.0"
+	},
+	"bufferViews": [
+		{
+			"buffer": 0,
+			"byteLength": 1608,
+			"byteOffset": 0,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 1608,
+			"byteOffset": 1608,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 1072,
+			"byteOffset": 3216,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 408,
+			"byteOffset": 4288,
+			"target": 34963
+		}
+	],
+	"buffers": [
+		{
+			"byteLength": 4696,
+			"uri": "nd_ruby_collision.bin"
+		}
+	],
+	"images": [],
+	"materials": [],
+	"meshes": [
+		{
+			"name": "",
+			"primitives": [
+				{
+					"attributes": {
+						"NORMAL": 1,
+						"POSITION": 0,
+						"TEXCOORD_0": 2
+					},
+					"indices": 3
+				}
+			]
+		}
+	],
+	"nodes": [
+		{
+			"mesh": 0,
+			"name": ""
+		}
+	],
+	"scene": 0,
+	"scenes": [
+		{
+			"nodes": [
+				0
+			]
+		}
+	],
+	"textures": []
+}

@@ -1,0 +1,249 @@
+{
+	"accessors": [
+		{
+			"bufferView": 0,
+			"componentType": 5126,
+			"count": 240,
+			"max": [
+				0.1867312341928482,
+				0.0994177907705307,
+				0.13155406713485718
+			],
+			"min": [
+				-0.16930200159549713,
+				-0.34788599610328674,
+				-0.13155406713485718
+			],
+			"type": "VEC3"
+		},
+		{
+			"bufferView": 1,
+			"componentType": 5126,
+			"count": 240,
+			"type": "VEC3"
+		},
+		{
+			"bufferView": 2,
+			"componentType": 5126,
+			"count": 240,
+			"type": "VEC2"
+		},
+		{
+			"bufferView": 3,
+			"componentType": 5126,
+			"count": 240,
+			"type": "VEC2"
+		},
+		{
+			"bufferView": 4,
+			"componentType": 5121,
+			"count": 240,
+			"type": "VEC4"
+		},
+		{
+			"bufferView": 5,
+			"componentType": 5126,
+			"count": 240,
+			"type": "VEC4"
+		},
+		{
+			"bufferView": 6,
+			"byteOffset": 0,
+			"componentType": 5123,
+			"count": 108,
+			"type": "SCALAR"
+		},
+		{
+			"bufferView": 6,
+			"byteOffset": 216,
+			"componentType": 5123,
+			"count": 24,
+			"type": "SCALAR"
+		},
+		{
+			"bufferView": 6,
+			"byteOffset": 264,
+			"componentType": 5123,
+			"count": 732,
+			"type": "SCALAR"
+		},
+		{
+			"bufferView": 6,
+			"byteOffset": 264,
+			"componentType": 5123,
+			"count": 732,
+			"type": "SCALAR"
+		}
+	],
+	"asset": {
+		"generator": "wowconv",
+		"version": "2.0"
+	},
+	"bufferViews": [
+		{
+			"buffer": 0,
+			"byteLength": 2880,
+			"byteOffset": 0,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 2880,
+			"byteOffset": 2880,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 1920,
+			"byteOffset": 5760,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 1920,
+			"byteOffset": 7680,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 960,
+			"byteOffset": 9600,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 3840,
+			"byteOffset": 10560,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 1728,
+			"byteOffset": 14400,
+			"target": 34963
+		}
+	],
+	"buffers": [
+		{
+			"byteLength": 16128,
+			"uri": "helm_cloth_pvpmage_b_03_bef.bin"
+		}
+	],
+	"images": [],
+	"materials": [
+		{
+			"doubleSided": false,
+			"extras": {
+				"blendMode": 0,
+				"flags": 0
+			},
+			"pbrMetallicRoughness": {
+				"metallicFactor": 0,
+				"roughnessFactor": 1
+			}
+		},
+		{
+			"doubleSided": false,
+			"extras": {
+				"blendMode": 2,
+				"flags": 16
+			},
+			"pbrMetallicRoughness": {
+				"metallicFactor": 0,
+				"roughnessFactor": 1
+			}
+		},
+		{
+			"doubleSided": false,
+			"extras": {
+				"blendMode": 0,
+				"flags": 0
+			},
+			"pbrMetallicRoughness": {
+				"metallicFactor": 0,
+				"roughnessFactor": 1
+			}
+		},
+		{
+			"doubleSided": false,
+			"extras": {
+				"blendMode": 2,
+				"flags": 16
+			},
+			"pbrMetallicRoughness": {
+				"metallicFactor": 0,
+				"roughnessFactor": 1
+			}
+		}
+	],
+	"meshes": [
+		{
+			"name": "Helm_Cloth_PvPMage_B_03_BeF",
+			"primitives": [
+				{
+					"attributes": {
+						"JOINTS_0": 4,
+						"NORMAL": 1,
+						"POSITION": 0,
+						"TEXCOORD_0": 2,
+						"TEXCOORD_1": 3,
+						"WEIGHTS_0": 5
+					},
+					"indices": 6,
+					"material": 0
+				},
+				{
+					"attributes": {
+						"JOINTS_0": 4,
+						"NORMAL": 1,
+						"POSITION": 0,
+						"TEXCOORD_0": 2,
+						"TEXCOORD_1": 3,
+						"WEIGHTS_0": 5
+					},
+					"indices": 7,
+					"material": 1
+				},
+				{
+					"attributes": {
+						"JOINTS_0": 4,
+						"NORMAL": 1,
+						"POSITION": 0,
+						"TEXCOORD_0": 2,
+						"TEXCOORD_1": 3,
+						"WEIGHTS_0": 5
+					},
+					"indices": 8,
+					"material": 2
+				},
+				{
+					"attributes": {
+						"JOINTS_0": 4,
+						"NORMAL": 1,
+						"POSITION": 0,
+						"TEXCOORD_0": 2,
+						"TEXCOORD_1": 3,
+						"WEIGHTS_0": 5
+					},
+					"indices": 9,
+					"material": 3
+				}
+			]
+		}
+	],
+	"nodes": [
+		{
+			"mesh": 0,
+			"name": "Helm_Cloth_PvPMage_B_03_BeF"
+		}
+	],
+	"scene": 0,
+	"scenes": [
+		{
+			"nodes": [
+				0
+			]
+		}
+	],
+	"textures": []
+}

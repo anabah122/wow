@@ -6,24 +6,14 @@
 --   doodads = { {names, placements, isWmo}, ... }   -- сырьё моделей для terrain:build
 -- }
 local importer = require 'importer.importer'
-local quat     = require 'math.quat'
 local ffi      = require 'ffi'
 
-local D2R = math.pi / 180
-
 -- placement -> движковый инстанс { x,y,z, qx,qy,qz,qw, scale }.
--- position уже в движковых координатах (НЕ трогаем — раньше работало). rotation — эйлеры в градусах.
--- геометрия в glTF свопнута Z-up->Y-up (x,z,-y); стандартная WoW MDDF ориентация для Y-up:
---   rot = Ry(ry - 90) * Rz(-rz) * Rx(rx)
+-- конвертер уже отдал готовые position и quat в движковой системе — просто читаем.
 local function placeWorld(p)
-    local rx, ry, rz = p.rotation[1] * D2R, p.rotation[2] * D2R, p.rotation[3] * D2R
-    local q = quat:axis('y', ry - math.pi / 2)
-            :mul(quat:axis('z', -rz))
-            :mul(quat:axis('x', rx))
-    local qx, qy, qz, qw = q:unpack()
     return {
         p.position[1], p.position[2], p.position[3],
-        qx, qy, qz, qw,
+        p.quat[1], p.quat[2], p.quat[3], p.quat[4],
         (p.scale or 1024) / 1024,
     }
 end

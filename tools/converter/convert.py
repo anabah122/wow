@@ -180,12 +180,88 @@ def artifacts(lib):
     return out
 
 
-def write_artifacts(lib, dst, reldir):
-    for name, data in artifacts(lib):
+def write_artifacts(lib, dst, reldir, is_wmo=False):
+    arts = artifacts(lib)
+    merged = merge_wmo(dst, reldir, arts) if is_wmo else False  # дописали группы в .gltf/.bin?
+    for name, data in arts:
+        # при успешном мерже .gltf/.bin уже обновлены merge_wmo — не перезатираем
+        if merged and (name.endswith(".gltf") or name.endswith(".bin")):
+            continue
         path = os.path.join(dst, reldir, name)
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "wb") as f:
             f.write(data)
+
+
+def merge_wmo(dst, reldir, arts):
+    """WMO-группы лежат в разных MPQ; root в каждом архиве даёт лишь ЧАСТЬ групп.
+    Дописываем недостающие группы (по индексу = name меша) в уже лежащий на диске
+    glTF+bin. .wmo.json/.png пишем как есть (полные). Возвращает True если смержили
+    (тогда вызывающий не делает обычную запись для .gltf/.bin)."""
+    import json
+    a = {name: data for name, data in arts}
+    gname = next((n for n in a if n.endswith(".gltf")), None)
+    if not gname:
+        return False
+    gpath = os.path.join(dst, reldir, gname)
+    bname = gname[:-5] + ".bin"
+    bpath = os.path.join(dst, reldir, bname)
+    if not os.path.exists(gpath):
+        return False                                  # первый раз — обычная запись
+
+    base = json.loads(open(gpath, "rb").read())
+    base_bin = bytearray(open(bpath, "rb").read())
+    new = json.loads(a[gname])
+    new_bin = a[bname]
+
+    have = {m.get("name") for m in base.get("meshes", [])}     # индексы групп уже на диске
+    # отображения для переноса индексов из new -> base
+    vo = len(base["bufferViews"]); ao = len(base["accessors"])
+    mo = len(base.get("materials", [])); to = len(base.get("textures", []))
+    io = len(base.get("images", []))
+    bin_off = len(base_bin)                                     # куда ляжет new_bin
+    base_bin += new_bin
+
+    added = 0
+    for nm in new.get("meshes", []):
+        if nm.get("name") in have:
+            continue                                            # такая группа уже есть
+        prims = []
+        for p in nm["primitives"]:
+            np = {"attributes": {k: v + ao for k, v in p["attributes"].items()},
+                  "indices": p["indices"] + ao}
+            if "material" in p:
+                np["material"] = p["material"] + mo
+            prims.append(np)
+        base["meshes"].append({"primitives": prims, "name": nm.get("name")})
+        base["nodes"].append({"mesh": len(base["meshes"]) - 1, "name": nm.get("name")})
+        base["scenes"][0]["nodes"].append(len(base["nodes"]) - 1)
+        added += 1
+    if added == 0:
+        return True                                             # нечего добавлять
+
+    for v in new["bufferViews"]:
+        nv = dict(v); nv["byteOffset"] = v.get("byteOffset", 0) + bin_off
+        base["bufferViews"].append(nv)
+    for ac in new["accessors"]:
+        na = dict(ac); na["bufferView"] = ac["bufferView"] + vo
+        base["accessors"].append(na)
+    for m in new.get("materials", []):
+        nm2 = json.loads(json.dumps(m))
+        bt = nm2.get("pbrMetallicRoughness", {}).get("baseColorTexture")
+        if bt:
+            bt["index"] += to
+        base.setdefault("materials", []).append(nm2)
+    for t in new.get("textures", []):
+        nt = dict(t); nt["source"] = t["source"] + io
+        base.setdefault("textures", []).append(nt)
+    for im in new.get("images", []):
+        base.setdefault("images", []).append(im)
+
+    base["buffers"][0]["byteLength"] = len(base_bin)
+    open(gpath, "wb").write(json.dumps(base, indent=1).encode())
+    open(bpath, "wb").write(bytes(base_bin))
+    return True
 
 
 def stem_of(wow_path):
@@ -204,6 +280,20 @@ def wdt_big_alpha(wdt_data):
             return bool(flags & (0x4 | 0x80))
         i += 8 + size
     return False
+
+
+def wmo_ngroups(root_data):
+    """nGroups из MOHD корневого WMO (uint32 сразу после nTextures). Нужно чтобы
+    собрать ВСЕ группы _NNN.wmo по индексу, а не обрываться на первой ненайденной
+    (группы в архиве идут не обязательно подряд)."""
+    i = 0
+    while i + 8 <= len(root_data):
+        tag = root_data[i:i+4][::-1]                     # теги в файле перевёрнуты
+        size = int.from_bytes(root_data[i+4:i+8], "little")
+        if tag == b"MOHD" and i + 16 <= len(root_data):
+            return int.from_bytes(root_data[i+12:i+16], "little")  # +8 nTextures, +12 nGroups
+        i += 8 + size
+    return 0
 
 
 def is_wmo_group(wow_path):
@@ -273,13 +363,16 @@ def main():
                 continue
             if ext == "wmo" and is_wmo_group(rel):
                 continue
-            if rel in seen:
-                continue
-            seen.add(rel)
-
-            if os.path.exists(output_path(dst, ext, rel)):
-                skip_n[ext] += 1
-                continue
+            # WMO НЕ дедупим по пути: root встречается в нескольких MPQ, и в каждом
+            # лежит лишь ЧАСТЬ групп (patch.MPQ: root+3 группы, common-2.MPQ: все 26).
+            # Берём из каждого архива что есть и домерживаем в файл на диске.
+            if ext != "wmo":
+                if rel in seen:
+                    continue
+                seen.add(rel)
+                if os.path.exists(output_path(dst, ext, rel)):
+                    skip_n[ext] += 1
+                    continue
 
             data = read_from(s, h, orig)
             if not data:
@@ -292,13 +385,10 @@ def main():
                 sp, sn = buf(read_from(s, h, orig[:-3] + "00.skin"))
                 rc = lib.wc_convert_m2(pb, nb, sp, sn, rel.encode())
             elif ext == "wmo":
-                groups, i2 = [], 0
-                while True:
-                    gd = read_from(s, h, f"{orig[:-4]}_{i2:03d}.wmo")
-                    if not gd:
-                        break
-                    groups.append(gd)
-                    i2 += 1
+                # читаем все nGroups групп по индексу; дырка (None) НЕ обрывает цикл —
+                # группы в архиве идут не обязательно подряд. C-API пропустит пустую.
+                ng = wmo_ngroups(data)
+                groups = [read_from(s, h, f"{orig[:-4]}_{i2:03d}.wmo") for i2 in range(ng)]
                 arr_p = (C.POINTER(C.c_uint8) * len(groups))()
                 arr_s = (C.c_size_t * len(groups))()
                 keep = []
@@ -320,7 +410,7 @@ def main():
                 rc = lib.wc_convert_blp(pb, nb, stem_of(rel).encode())
 
             if rc == 0:
-                write_artifacts(lib, dst, reldir)
+                write_artifacts(lib, dst, reldir, is_wmo=(ext == "wmo"))
                 done[ext] += 1
             else:
                 print(f"FAIL convert [{ext}] rc={rc} {rel}", file=sys.stderr, flush=True)
@@ -329,8 +419,8 @@ def main():
 
             n_arch += 1
             if n_arch % 1000 == 0:
-                d = sum(done.values()); f = sum(fail.values())
-                print(f"  [{os.path.basename(p)} +{n_arch}] всего ok={d} fail={f}", flush=True)
+                d = sum(done.values()); f = sum(fail.values()); sk = sum(skip_n.values())
+                print(f"  [{os.path.basename(p)} +{n_arch}] всего ok={d} skip={sk} fail={f}", flush=True)
         s.SFileCloseArchive(h)
 
     print("\n=== DONE ===")

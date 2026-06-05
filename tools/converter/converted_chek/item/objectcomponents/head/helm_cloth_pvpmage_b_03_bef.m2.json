@@ -1,0 +1,444 @@
+{
+	"attachmentLookup": [],
+	"attachments": [],
+	"batches": [
+		{
+			"colorIndex": 65535,
+			"flags": 16,
+			"indexCount": 108,
+			"indexStart": 0,
+			"materialIndex": 0,
+			"materialLayer": 0,
+			"priorityPlane": 0,
+			"shader": 0,
+			"skinSectionIndex": 0,
+			"submeshId": 0,
+			"submeshLevel": 0,
+			"textureAnimIndex": 0,
+			"textureCount": 1,
+			"textureIndex": 0,
+			"textureUnit": 0,
+			"transparencyIndex": 0,
+			"vertexCount": 26,
+			"vertexStart": 0
+		},
+		{
+			"colorIndex": 65535,
+			"flags": 16,
+			"indexCount": 24,
+			"indexStart": 108,
+			"materialIndex": 1,
+			"materialLayer": 0,
+			"priorityPlane": 0,
+			"shader": 0,
+			"skinSectionIndex": 1,
+			"submeshId": 0,
+			"submeshLevel": 0,
+			"textureAnimIndex": 0,
+			"textureCount": 1,
+			"textureIndex": 0,
+			"textureUnit": 0,
+			"transparencyIndex": 0,
+			"vertexCount": 10,
+			"vertexStart": 26
+		},
+		{
+			"colorIndex": 65535,
+			"flags": 16,
+			"indexCount": 732,
+			"indexStart": 132,
+			"materialIndex": 2,
+			"materialLayer": 0,
+			"priorityPlane": 0,
+			"shader": 0,
+			"skinSectionIndex": 2,
+			"submeshId": 0,
+			"submeshLevel": 0,
+			"textureAnimIndex": 0,
+			"textureCount": 2,
+			"textureIndex": 0,
+			"textureUnit": 0,
+			"transparencyIndex": 0,
+			"vertexCount": 204,
+			"vertexStart": 36
+		},
+		{
+			"colorIndex": 65535,
+			"flags": 16,
+			"indexCount": 732,
+			"indexStart": 132,
+			"materialIndex": 3,
+			"materialLayer": 1,
+			"priorityPlane": 0,
+			"shader": 0,
+			"skinSectionIndex": 2,
+			"submeshId": 0,
+			"submeshLevel": 0,
+			"textureAnimIndex": 0,
+			"textureCount": 1,
+			"textureIndex": 0,
+			"textureUnit": 0,
+			"transparencyIndex": 0,
+			"vertexCount": 204,
+			"vertexStart": 36
+		}
+	],
+	"boneLookupTable": [
+		0,
+		0,
+		0,
+		0
+	],
+	"bones": [
+		{
+			"flags": 0,
+			"keyBoneId": -1,
+			"parentBone": -1,
+			"pivot": [
+				0.12321201711893082,
+				0.00015034311218187213,
+				-0.24545356631278992
+			],
+			"rotation": {
+				"globalSequence": -1,
+				"interpolationType": 0,
+				"sequences": []
+			},
+			"scale": {
+				"globalSequence": -1,
+				"interpolationType": 0,
+				"sequences": []
+			},
+			"submeshId": 0,
+			"translation": {
+				"globalSequence": -1,
+				"interpolationType": 0,
+				"sequences": []
+			}
+		},
+		{
+			"flags": 0,
+			"keyBoneId": -1,
+			"parentBone": -1,
+			"pivot": [
+				0.030989935621619225,
+				0.002065336098894477,
+				0.014889417216181755
+			],
+			"rotation": {
+				"globalSequence": -1,
+				"interpolationType": 0,
+				"sequences": []
+			},
+			"scale": {
+				"globalSequence": -1,
+				"interpolationType": 0,
+				"sequences": []
+			},
+			"submeshId": 0,
+			"translation": {
+				"globalSequence": -1,
+				"interpolationType": 0,
+				"sequences": []
+			}
+		}
+	],
+	"boundMax": [
+		0.0,
+		0.0,
+		0.0
+	],
+	"boundMin": [
+		0.0,
+		0.0,
+		0.0
+	],
+	"boundRadius": 0.0,
+	"collisionIndices": [],
+	"collisionNormals": [],
+	"collisionVertices": [],
+	"colorAlphas": [],
+	"globalFlags": 8,
+	"globalSequenceDurations": [],
+	"materials": [
+		{
+			"blendMode": 0,
+			"flags": 0
+		},
+		{
+			"blendMode": 2,
+			"flags": 16
+		},
+		{
+			"blendMode": 0,
+			"flags": 0
+		},
+		{
+			"blendMode": 2,
+			"flags": 16
+		}
+	],
+	"name": "Helm_Cloth_PvPMage_B_03_BeF",
+	"particleEmitters": [
+		{
+			"blendingType": 4,
+			"bone": 1,
+			"deceleration": {
+				"globalSequence": -1,
+				"interpolationType": 0,
+				"sequences": [
+					{
+						"float": [
+							0.0
+						],
+						"timestamps": [
+							0
+						]
+					}
+				]
+			},
+			"emissionAreaLength": {
+				"globalSequence": -1,
+				"interpolationType": 0,
+				"sequences": [
+					{
+						"float": [
+							0.08941372483968735
+						],
+						"timestamps": [
+							0
+						]
+					}
+				]
+			},
+			"emissionAreaWidth": {
+				"globalSequence": -1,
+				"interpolationType": 0,
+				"sequences": [
+					{
+						"float": [
+							0.0916244387626648
+						],
+						"timestamps": [
+							0
+						]
+					}
+				]
+			},
+			"emissionRate": {
+				"globalSequence": -1,
+				"interpolationType": 0,
+				"sequences": [
+					{
+						"float": [
+							50.0
+						],
+						"timestamps": [
+							0
+						]
+					}
+				]
+			},
+			"emissionSpeed": {
+				"globalSequence": -1,
+				"interpolationType": 0,
+				"sequences": [
+					{
+						"float": [
+							0.18055571615695953
+						],
+						"timestamps": [
+							0
+						]
+					}
+				]
+			},
+			"emitterType": 1,
+			"flags": 131113,
+			"gravity": {
+				"globalSequence": -1,
+				"interpolationType": 0,
+				"sequences": [
+					{
+						"float": [
+							0.0
+						],
+						"timestamps": [
+							0
+						]
+					}
+				]
+			},
+			"horizontalRange": {
+				"globalSequence": -1,
+				"interpolationType": 0,
+				"sequences": [
+					{
+						"float": [
+							6.2831854820251465
+						],
+						"timestamps": [
+							0
+						]
+					}
+				]
+			},
+			"lifespan": {
+				"globalSequence": -1,
+				"interpolationType": 0,
+				"sequences": [
+					{
+						"float": [
+							1.0700000524520874
+						],
+						"timestamps": [
+							0
+						]
+					}
+				]
+			},
+			"particleAlpha": {
+				"float": [
+					0.0,
+					0.38431960344314575,
+					0.07058931142091751
+				],
+				"timestamps": [
+					0.0,
+					0.6500137448310852,
+					1.0
+				]
+			},
+			"particleColor": {
+				"timestamps": [
+					0.0,
+					0.6500137448310852,
+					1.0
+				],
+				"vec3": [
+					[
+						0.7960785031318665,
+						1.0,
+						0.7568628191947937
+					],
+					[
+						0.0,
+						0.33725491166114807,
+						0.7960785031318665
+					],
+					[
+						0.0,
+						0.4941176772117615,
+						0.501960813999176
+					]
+				]
+			},
+			"particleId": -1,
+			"particleScale": {
+				"float": [
+					0.1250000149011612,
+					0.09166668355464935,
+					0.030555563047528267
+				],
+				"timestamps": [
+					0.0,
+					0.6500137448310852,
+					1.0
+				]
+			},
+			"position": [
+				0.030989935621619225,
+				0.002065336098894477,
+				0.014889417216181755
+			],
+			"speedVariation": {
+				"globalSequence": -1,
+				"interpolationType": 0,
+				"sequences": [
+					{
+						"float": [
+							0.4599999785423279
+						],
+						"timestamps": [
+							0
+						]
+					}
+				]
+			},
+			"texture": 2,
+			"textureCols": 1,
+			"textureRows": 1,
+			"textureTileRotation": 0,
+			"verticalRange": {
+				"globalSequence": -1,
+				"interpolationType": 0,
+				"sequences": [
+					{
+						"float": [
+							0.0
+						],
+						"timestamps": [
+							0
+						]
+					}
+				]
+			}
+		}
+	],
+	"ribbonEmitters": [],
+	"sequences": [
+		{
+			"aliasNext": 0,
+			"blendTime": 150,
+			"boundMax": [
+				0.1867312341928482,
+				0.13155406713485718,
+				0.0994177907705307
+			],
+			"boundMin": [
+				-0.16930200159549713,
+				-0.13155406713485718,
+				-0.34788599610328674
+			],
+			"boundRadius": 0.2504850924015045,
+			"duration": 611033,
+			"flags": 32,
+			"frequency": 32767,
+			"id": 0,
+			"movingSpeed": 0.0,
+			"nextAnimation": -1,
+			"replayMax": 0,
+			"replayMin": 0,
+			"variationIndex": 0
+		}
+	],
+	"textureLookup": [
+		0,
+		1
+	],
+	"textureTransformLookup": [
+		0
+	],
+	"textureTransforms": [],
+	"textureWeights": [
+		1.0
+	],
+	"textures": [
+		{
+			"filename": "",
+			"flags": 0,
+			"type": 2
+		},
+		{
+			"filename": "ITEM\\OBJECTCOMPONENTS\\SHIELD\\ARMORREFLECT4.BLP",
+			"flags": 0,
+			"type": 0
+		},
+		{
+			"filename": "SPELLS\\T_VFX_SMOKE_CIGARETTEA.BLP",
+			"flags": 0,
+			"type": 0
+		}
+	],
+	"version": 264
+}

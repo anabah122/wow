@@ -9,6 +9,7 @@
 #include <array>
 #include <cstdint>
 #include <cstring>
+#include <cmath>
 #include <algorithm>
 
 using json = nlohmann::json;
@@ -17,6 +18,29 @@ using namespace wowee::pipeline;
 namespace {
 constexpr int FLOAT = 5126, U16 = 5123;
 constexpr int ARRAY_BUF = 34962, ELEM_BUF = 34963;
+
+// MDDF/MODF rotation (эйлеры в градусах) -> готовый кватернион для движка.
+// Геометрия свопнута Z-up->Y-up (x,z,-y); ориентация: Ry(ry-90)*Rz(-rz)*Rx(rx).
+// Движок просто берёт готовый {x,y,z,w}, ничего не считает.
+inline std::array<double,4> placementQuat(const float rot[3]) {
+    const double D2R = 3.14159265358979323846 / 180.0;
+    double rx = rot[0]*D2R, ry = rot[1]*D2R, rz = rot[2]*D2R;
+    auto axis = [](int a, double ang) -> std::array<double,4> {
+        double h = ang*0.5, s = std::sin(h), c = std::cos(h);
+        if (a==0) return {s,0,0,c};   // x
+        if (a==1) return {0,s,0,c};   // y
+        return {0,0,s,c};             // z
+    };
+    auto mul = [](const std::array<double,4>& a, const std::array<double,4>& b) {
+        return std::array<double,4>{
+            a[3]*b[0] + a[0]*b[3] + a[1]*b[2] - a[2]*b[1],
+            a[3]*b[1] - a[0]*b[2] + a[1]*b[3] + a[2]*b[0],
+            a[3]*b[2] + a[0]*b[1] - a[1]*b[0] + a[2]*b[3],
+            a[3]*b[3] - a[0]*b[0] - a[1]*b[1] - a[2]*b[2]};
+    };
+    auto q = mul(mul(axis(1, ry - 3.14159265358979323846/2), axis(2, -rz)), axis(0, rx));
+    return q;
+}
 
 struct Bin {
     std::vector<uint8_t> data;
@@ -81,7 +105,8 @@ void writeWMOGltf(const WMOModel& model, const std::string& outDir, const std::s
         gMats.push_back(mat);
     }
 
-    for (const auto& g : model.groups) {
+    for (size_t gi = 0; gi < model.groups.size(); ++gi) {
+        const auto& g = model.groups[gi];
         if (g.vertices.empty() || g.indices.empty()) continue;
         const int nv = (int)g.vertices.size();
         int aPos, aNrm, aUv;
@@ -105,8 +130,10 @@ void writeWMOGltf(const WMOModel& model, const std::string& outDir, const std::s
             if (b.materialId < gMats.size()) prim["material"] = b.materialId;
             prims.push_back(prim);
         }
-        meshes.push_back({ {"primitives",prims},{"name",g.name} });
-        nodes.push_back({ {"mesh",(int)meshes.size()-1},{"name",g.name} });
+        // name = индекс группы WMO (нужно для мержа групп из разных MPQ)
+        std::string gname = std::to_string(gi);
+        meshes.push_back({ {"primitives",prims},{"name",gname} });
+        nodes.push_back({ {"mesh",(int)meshes.size()-1},{"name",gname} });
         sceneNodes.push_back((int)nodes.size()-1);
     }
 
@@ -171,7 +198,6 @@ static void decodeMCAL(const MapChunk& c, size_t layerIdx, bool bigAlpha, bool f
     if (!layer.useAlpha() || layer.offsetMCAL >= c.alphaMap.size()) return;
     size_t offset = layer.offsetMCAL;
 
-    size_t rleWp = 0;
     if (layer.compressedAlpha()) {
         // RLE -> 4096
         size_t rp = offset, wp = 0;
@@ -182,17 +208,11 @@ static void decodeMCAL(const MapChunk& c, size_t layerIdx, bool bigAlpha, bool f
                 for (int i=0;i<n && wp<4096;i++) out[wp++]=v; } }
             else for (int i=0;i<n && wp<4096 && rp<c.alphaMap.size();i++) out[wp++]=c.alphaMap[rp++];
         }
-        rleWp = wp;
     } else {
         // несжатый -> 8-bit 4096 байт напрямую (подтверждено дампом _dbgB_8bit:
         // на этих картах несжатый слой хранится 8-бит даже при big_alpha=0)
         for (int i=0;i<4096 && offset+(size_t)i<c.alphaMap.size();i++) out[i]=c.alphaMap[offset+i];
     }
-
-    { static int d=0; if(d<16){d++;                  // диагностика: режим + диапазон + сколько RLE распаковал
-        uint8_t mn=255,mx=0; for(auto v:out){ if(v<mn)mn=v; if(v>mx)mx=v; }
-        fprintf(stderr,"[MCAL] big=%d comp=%d ofs=%zu mcalSz=%zu rleWp=%zu min=%d max=%d\n",
-            (int)bigAlpha,(int)layer.compressedAlpha(),offset,c.alphaMap.size(),rleWp,mn,mx); } }
 }
 } // namespace
 
@@ -231,33 +251,6 @@ void writeADTJson(const ADTTerrain& adt, const std::string& outDir, const std::s
             int ch=(int)li-1;
             for (int my=0; my<MCHUNK; ++my) for (int mx=0; mx<MCHUNK; ++mx)
                 mask[((cy*MCHUNK+my)*MTILE + cx*MCHUNK+mx)*4 + ch] = a64[my*ALPHA+mx];
-
-            // ДИАГНОСТИКА: «зашумлённость» слоя = доля резких скачков между соседями по X.
-            // шумный чанк -> noise высокий. Печатаем параметры слоя чтобы сравнить шумные vs чистые.
-            int jumps=0,total=0;
-            for (int y=0;y<64;++y) for (int x=1;x<64;++x){ total++;
-                if (abs((int)a64[y*64+x]-(int)a64[y*64+x-1])>64) jumps++; }
-            float noise = total? (float)jumps/total : 0.f;
-            if (noise > 0.30f) {   // только подозрительно шумные
-                static int nd=0; if(nd<24){nd++;
-                    fprintf(stderr,"[NOISE] chunk(%d,%d) layer%zu noise=%.2f comp=%d ofs=%u texId=%u alphaSz=%zu\n",
-                        cx,cy,li,noise,(int)c.layers[li].compressedAlpha(),
-                        c.layers[li].offsetMCAL,c.layers[li].textureId,c.alphaMap.size()); }
-            }
-            // дамп ПЕРВОГО шумного comp=0 слоя: вариант A (наш 4-bit) и B (8-bit как есть)
-            { static bool d2=false;
-              if(!d2 && noise>0.5f && !c.layers[li].compressedAlpha()){ d2=true;
-                size_t of=c.layers[li].offsetMCAL;
-                std::vector<uint8_t> b8(64*64,0);
-                for(int i=0;i<4096 && of+i<c.alphaMap.size();++i) b8[i]=c.alphaMap[of+i];
-                std::vector<uint8_t> png; auto cb2=[](void* ctx,void* dd,int n){
-                    auto* v=static_cast<std::vector<uint8_t>*>(ctx);
-                    const uint8_t* b=static_cast<const uint8_t*>(dd); v->insert(v->end(),b,b+n);};
-                png.clear(); stbi_write_png_to_func(cb2,&png,64,64,1,a64.data(),64);
-                writeFile(dir+"/_dbgA_4bit.png",png.data(),png.size());
-                png.clear(); stbi_write_png_to_func(cb2,&png,64,64,1,b8.data(),64);
-                writeFile(dir+"/_dbgB_8bit.png",png.data(),png.size());
-                fprintf(stderr,"[DUMP] chunk(%d,%d) layer%zu ofs=%zu -> _dbgA_4bit/_dbgB_8bit.png\n",cx,cy,li,of); } }
         }
         int bdst=(cy*16+cx)*4;
         for (int li=0; li<4; ++li) {
@@ -301,15 +294,17 @@ void writeADTJson(const ADTTerrain& adt, const std::string& outDir, const std::s
     for(auto& n:adt.wmoNames) wn.push_back(pathTo(n,".gltf"));
     j["wmoNames"]=wn;
     json dp=json::array();
-    for(auto& d:adt.doodadPlacements) dp.push_back({{"nameId",d.nameId},{"uniqueId",d.uniqueId},
+    for(auto& d:adt.doodadPlacements){ auto q=placementQuat(d.rotation);
+        dp.push_back({{"nameId",d.nameId},{"uniqueId",d.uniqueId},
         {"position",{d.position[0],d.position[1],d.position[2]}},
-        {"rotation",{d.rotation[0],d.rotation[1],d.rotation[2]}},{"scale",d.scale},{"flags",d.flags}});
+        {"quat",{q[0],q[1],q[2],q[3]}},{"scale",d.scale},{"flags",d.flags}}); }
     j["doodadPlacements"]=dp;
     json wp=json::array();
-    for(auto& w:adt.wmoPlacements) wp.push_back({{"nameId",w.nameId},{"uniqueId",w.uniqueId},
+    for(auto& w:adt.wmoPlacements){ auto q=placementQuat(w.rotation);
+        wp.push_back({{"nameId",w.nameId},{"uniqueId",w.uniqueId},
         {"position",{w.position[0],w.position[1],w.position[2]}},
-        {"rotation",{w.rotation[0],w.rotation[1],w.rotation[2]}},
-        {"flags",w.flags},{"doodadSet",w.doodadSet},{"scale",w.scale}});
+        {"quat",{q[0],q[1],q[2],q[3]}},
+        {"flags",w.flags},{"doodadSet",w.doodadSet},{"scale",w.scale}}); }
     j["wmoPlacements"]=wp;
     std::string s=j.dump(1,'\t'); writeFile(dir+"/terrain.json", s.data(), s.size());
 }
