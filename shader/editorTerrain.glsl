@@ -65,9 +65,15 @@ vec4 effect(vec4 c, Image t, vec2 uv, vec2 sc) {
     vec4 idx = Texel(matIndexMap, vUV);            // 4 индекса материалов чанка (nearest)
     vec4 gi = floor(idx * uMatCount + 0.5);        // развёрнутые глобальные индексы (0 = пусто)
 
+<<<<<<< HEAD
     // слот 1 (gi.r) — база чанка (фон, без альфы). пусто (0) -> дефолтный материал 1.
     // слоты 2..4 — накладки, альфа-композитинг (over): кроют нижнее по своей альфе.
     vec3 col = tileColor(gi.r > 0.5 ? gi.r : 1.0);
+=======
+    // слот 1 (gi.r) — база чанка (фон), слоты 2..4 — накладки. альфа-композитинг (over):
+    // каждая накладка кроет нижнее по своей альфе. независимые веса -> нет проступающей базы.
+    vec3 col = tileColor(gi.r);
+>>>>>>> 5dea7a51be442304df25c2e81bf34b7059ba6cb0
     if (gi.g > 0.5) col = mix(col, tileColor(gi.g), matWeight(gi.g));
     if (gi.b > 0.5) col = mix(col, tileColor(gi.b), matWeight(gi.b));
     if (gi.a > 0.5) col = mix(col, tileColor(gi.a), matWeight(gi.a));
