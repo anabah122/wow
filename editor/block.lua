@@ -27,13 +27,11 @@ function Block:new(matCount)
         self.weight[m] = love.image.newImageData(HSIZE, HSIZE, 'r8')
     end
 
-    -- matInd[chunk] = {i1,i2,i3,i4} глобальные индексы материалов в чанке.
-    -- слот 1 = база (материал 1, проступает где остаток), слоты 2..4 — накладки (0 = пусто).
+    -- matInd[chunk] = {i1,i2,i3,i4} глобальные индексы материалов в чанке (0 = пусто).
+    -- слот 1 = база (первый покрашенный материал, кроет фон), слоты 2..4 — накладки.
+    -- пока чанк пуст (слот 1 = 0) шейдер рисует дефолтный фон (материал 1).
     self.matInd = {}
-    for c = 1, BLOCK * BLOCK do self.matInd[c] = { 1, 0, 0, 0 } end
-    for cy = 0, BLOCK - 1 do for cx = 0, BLOCK - 1 do
-        self.matIndex:setPixel(cx, cy, 1 / self.matCount, 0, 0, 1)   -- старт: база = материал 1
-    end end
+    for c = 1, BLOCK * BLOCK do self.matInd[c] = { 0, 0, 0, 0 } end
 
     self.heightTex   = love.graphics.newImage(self.height)
     self.matIndexTex = love.graphics.newImage(self.matIndex)
@@ -65,11 +63,11 @@ function Block:chunkAt(tx, ty)
     return cy * BLOCK + cx + 1, cx, cy
 end
 
--- зарезервировать слот накладки mat в чанке (слоты 2..4; слот 1 = база, материал 1).
--- nil если 3 слота-накладки заняты другими материалами.
+-- зарезервировать слот материала mat в чанке. слот 1 = база (первый покрашенный материал,
+-- кроет фон), слоты 2..4 — накладки поверх. nil если все 4 слота заняты другими.
 local function reserveSlot(ind, mat)
-    for i = 2, 4 do if ind[i] == mat then return true end end
-    for i = 2, 4 do if ind[i] == 0   then ind[i] = mat; return true end end
+    for i = 1, 4 do if ind[i] == mat then return true end end
+    for i = 1, 4 do if ind[i] == 0   then ind[i] = mat; return true end end
     return nil
 end
 
@@ -82,7 +80,6 @@ end
 -- остальные не трогаем -> нет взаимного гашения и нет проступающей базы между накладками.
 -- замещение даёт шейдер: накладки рисуются поверх базы по своей альфе в порядке слотов.
 function Block:setMaterialWeight(tx, ty, mat, target)
-    if mat == 1 then return false end               -- базу не красят (она фон)
     local chunk, cx, cy = self:chunkAt(tx, ty)
     local ind = self.matInd[chunk]
     if not reserveSlot(ind, mat) then return false end
