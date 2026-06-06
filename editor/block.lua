@@ -27,14 +27,8 @@ function Block:new(matCount)
         self.weight[m] = love.image.newImageData(HSIZE, HSIZE, 'r8')
     end
 
-<<<<<<< HEAD
-    -- matInd[chunk] = {i1,i2,i3,i4} глобальные индексы материалов в чанке (0 = пусто).
-    -- слот 1 = база (первый покрашенный материал, кроет фон), слоты 2..4 — накладки.
-    -- пока чанк пуст (слот 1 = 0) шейдер рисует дефолтный фон (материал 1).
-=======
     -- matInd[chunk] = {i1,i2,i3,i4} глобальные индексы материалов в чанке.
     -- слот 1 = база (материал 1, проступает где остаток), слоты 2..4 — накладки (0 = пусто).
->>>>>>> 5dea7a51be442304df25c2e81bf34b7059ba6cb0
     self.matInd = {}
     for c = 1, BLOCK * BLOCK do self.matInd[c] = { 1, 0, 0, 0 } end
     for cy = 0, BLOCK - 1 do for cx = 0, BLOCK - 1 do
@@ -71,19 +65,11 @@ function Block:chunkAt(tx, ty)
     return cy * BLOCK + cx + 1, cx, cy
 end
 
-<<<<<<< HEAD
--- зарезервировать слот материала mat в чанке. слот 1 = база (первый покрашенный материал,
--- кроет фон), слоты 2..4 — накладки поверх. nil если все 4 слота заняты другими.
-local function reserveSlot(ind, mat)
-    for i = 1, 4 do if ind[i] == mat then return true end end
-    for i = 1, 4 do if ind[i] == 0   then ind[i] = mat; return true end end
-=======
 -- зарезервировать слот накладки mat в чанке (слоты 2..4; слот 1 = база, материал 1).
 -- nil если 3 слота-накладки заняты другими материалами.
 local function reserveSlot(ind, mat)
     for i = 2, 4 do if ind[i] == mat then return true end end
     for i = 2, 4 do if ind[i] == 0   then ind[i] = mat; return true end end
->>>>>>> 5dea7a51be442304df25c2e81bf34b7059ba6cb0
     return nil
 end
 
@@ -96,10 +82,7 @@ end
 -- остальные не трогаем -> нет взаимного гашения и нет проступающей базы между накладками.
 -- замещение даёт шейдер: накладки рисуются поверх базы по своей альфе в порядке слотов.
 function Block:setMaterialWeight(tx, ty, mat, target)
-<<<<<<< HEAD
-=======
     if mat == 1 then return false end               -- базу не красят (она фон)
->>>>>>> 5dea7a51be442304df25c2e81bf34b7059ba6cb0
     local chunk, cx, cy = self:chunkAt(tx, ty)
     local ind = self.matInd[chunk]
     if not reserveSlot(ind, mat) then return false end
