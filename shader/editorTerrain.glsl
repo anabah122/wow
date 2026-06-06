@@ -16,6 +16,7 @@ uniform Image matIndexMap;     // 1 пиксель = чанк, RGBA = 4 инде
 uniform float uMatCount;       // всего материалов (для разворота индексов)
 
 vec2 inset(vec2 uv) { return uv * (1.0 - HTEXEL) + HTEXEL * 0.5; }
+vec2 insetMat(vec2 uv) { return uv * (1.0 - 1.0/BLOCK) + (1.0/BLOCK) * 0.5; }
 
 #ifdef VERTEX
 attribute vec2 iChunkXZ;       // смещение чанка в блоке (ячейки)
@@ -62,7 +63,7 @@ float matWeight(float idx) {
 }
 
 vec4 effect(vec4 c, Image t, vec2 uv, vec2 sc) {
-    vec4 idx = Texel(matIndexMap, vUV);            // 4 индекса материалов чанка (nearest)
+    vec4 idx = Texel(matIndexMap, insetMat(vUV));            // 4 индекса материалов чанка (nearest)
     vec4 gi = floor(idx * uMatCount + 0.5);        // развёрнутые глобальные индексы (0 = пусто)
 
     // слот 1 (gi.r) — база чанка (фон, без альфы). пусто (0) -> дефолтный материал 1.

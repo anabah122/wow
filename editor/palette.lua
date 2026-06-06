@@ -8,12 +8,17 @@ local PAD  = 12
 local Palette = {}
 Palette.__index = Palette
 
--- ImageData приведённый к TILE x TILE
+-- ImageData отмасштабированный (НЕ paste) до TILE x TILE: все слои ArrayImage
+-- обязаны быть одного размера, иначе мелкая текстура с паддингом ломает wrap.
 local function fit(src)
     if src:getWidth() == TILE and src:getHeight() == TILE then return src end
-    local dst = love.image.newImageData(TILE, TILE, 'rgba8')
-    dst:paste(src, 0, 0, 0, 0, math.min(src:getWidth(), TILE), math.min(src:getHeight(), TILE))
-    return dst
+    local tex = LG.newImage(src); tex:setFilter('linear', 'linear')
+    local canvas = LG.newCanvas(TILE, TILE)
+    LG.setCanvas(canvas)
+    LG.clear()
+    LG.draw(tex, 0, 0, 0, TILE / src:getWidth(), TILE / src:getHeight())
+    LG.setCanvas()
+    return canvas:newImageData()
 end
 
 function Palette:new()
@@ -36,7 +41,9 @@ function Palette:new()
 
     if #slices > 0 then
         self.array = LG.newArrayImage(slices, { mipmaps = true })
-        self.array:setFilter('linear', 'linear'); self.array:setWrap('repeat', 'repeat')
+        self.array:setFilter('linear', 'linear', 16)   -- mipmap + анизотропия против ряби на дали
+        self.array:setMipmapFilter('linear')
+        self.array:setWrap('repeat', 'repeat')
     end
 
     self.selected = 1

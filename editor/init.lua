@@ -71,6 +71,7 @@ function love.draw()
     if aimWorld then
         render:drawBrush(camera, block, aimWorld[1], aimWorld[3], radius)
     end
+
     local mat = palette.mats[palette.selected]
     hud.draw{
         fps      = fps:get(),
