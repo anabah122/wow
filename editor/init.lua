@@ -8,6 +8,7 @@ local brush   = require 'editor.brush'
 local picker  = require 'editor.picker'
 local Render  = require 'editor.render'
 local Palette = require 'editor.palette'
+local Materials = require 'editor.materials'
 local hud     = require 'editor.hud'
 local FpsMean = require 'class.util.fpsMean'
 local dims    = require 'class.util.dims'
@@ -22,6 +23,7 @@ local palette = Palette:new()
 local block   = Block:new(#palette.mats)
 local render  = Render:new()
 local fps     = FpsMean:new()
+local materials = Materials:new(function(name) return palette:tileIndex(name) end)
 
 local camera = Camera:new{
     x = 0, y = 200, z = 0,
@@ -36,7 +38,7 @@ local flatLevel = 0
 local aimTex                -- {tx,ty} под прицелом
 local aimWorld              -- {x,y,z} мировая точка прицела
 
-local TOOLS = { ['1']='raise', ['2']='lower', ['3']='smooth', ['4']='flatten', ['5']='paint' }
+local TOOLS = { ['1']='raise', ['2']='lower', ['3']='smooth', ['4']='flatten', ['5']='paint', ['6']='procedural' }
 
 function love.update(dt)
     fps:step()
@@ -55,6 +57,9 @@ function love.update(dt)
             elseif tool == 'flatten'then brush.flatten(block, tx, ty, radius, strength, flatLevel, dt)
             elseif tool == 'paint'  then
                 brush.paint(block, tx, ty, radius, paintStrength, palette.selected, dt)
+            elseif tool == 'procedural' then
+                local m = materials:current()
+                if m then m:apply(block, tx, ty, radius, dt) end
             end
         end
     end
@@ -73,12 +78,13 @@ function love.draw()
     end
 
     local mat = palette.mats[palette.selected]
+    local proc = materials:current()
     hud.draw{
         fps      = fps:get(),
         tool     = tool,
         radius   = radius,
         strength = tool == 'paint' and paintStrength or strength,
-        matName  = mat and mat.name or '-',
+        matName  = tool == 'procedural' and (proc and proc.name or '-') or (mat and mat.name or '-'),
     }
 end
 
@@ -120,6 +126,11 @@ function love.keypressed(k)
         palette.open = not palette.open
         love.mouse.setRelativeMode(not palette.open)
         love.mouse.setVisible(palette.open)          -- курсор только в палитре
+    end
+    if k == 'r' then materials:reload() end          -- hot-reload процедурных материалов
+    if #materials.list > 0 then                      -- стрелки листают процедурные материалы
+        if k == 'left'  then materials.selected = (materials.selected - 2) % #materials.list + 1 end
+        if k == 'right' then materials.selected = materials.selected % #materials.list + 1 end
     end
     if TOOLS[k] then tool = TOOLS[k] end
 end

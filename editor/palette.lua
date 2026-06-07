@@ -1,25 +1,11 @@
 -- палитра материалов: скан папки png, экран выбора сеткой превью.
 -- индекс материала = позиция в отсортированном списке (1-based), как matInd в чанке.
 local DIR  = 'assets/textures/tiles'
-local TILE = 256   -- общий размер слоя ArrayImage
 local CELL = 128
 local PAD  = 12
 
 local Palette = {}
 Palette.__index = Palette
-
--- ImageData отмасштабированный (НЕ paste) до TILE x TILE: все слои ArrayImage
--- обязаны быть одного размера, иначе мелкая текстура с паддингом ломает wrap.
-local function fit(src)
-    if src:getWidth() == TILE and src:getHeight() == TILE then return src end
-    local tex = LG.newImage(src); tex:setFilter('linear', 'linear')
-    local canvas = LG.newCanvas(TILE, TILE)
-    LG.setCanvas(canvas)
-    LG.clear()
-    LG.draw(tex, 0, 0, 0, TILE / src:getWidth(), TILE / src:getHeight())
-    LG.setCanvas()
-    return canvas:newImageData()
-end
 
 function Palette:new()
     local self = setmetatable({}, Palette)
@@ -36,7 +22,7 @@ function Palette:new()
         local data = love.image.newImageData(DIR .. '/' .. f)
         local tex = LG.newImage(data); tex:setFilter('linear', 'linear')
         self.mats[i] = { name = f:gsub('%.png$', ''), tex = tex }
-        slices[i] = fit(data)
+        slices[i] = data
     end
 
     if #slices > 0 then
@@ -46,10 +32,17 @@ function Palette:new()
         self.array:setWrap('repeat', 'repeat')
     end
 
+    -- имя тайла -> глобальный индекс (= позиция в палитре). для процедурных материалов.
+    self.indexOf = {}
+    for i, m in ipairs(self.mats) do self.indexOf[m.name] = i end
+
     self.selected = 1
     self.open = false
     return self
 end
+
+-- глобальный индекс тайла по имени (nil если нет такого тайла в палитре)
+function Palette:tileIndex(name) return self.indexOf[name] end
 
 -- сетка: колонок по ширине окна
 function Palette:cols() return math.max(1, math.floor((LG.getWidth() - PAD) / (CELL + PAD))) end

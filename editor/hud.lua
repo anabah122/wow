@@ -2,8 +2,8 @@
 local hud = {}
 
 local HELP = {
-    '[1] raise  [2] lower  [3] smooth  [4] flatten  [5] paint',
-    'M: palette   shift+wheel: radius   alt+wheel: strength   LMB: draw',
+    '[1] raise  [2] lower  [3] smooth  [4] flatten  [5] paint  [6] procedural',
+    'M: palette   R: reload mats   <-/->: proc mat   shift+wheel: radius   alt+wheel: strength   LMB: draw',
 }
 
 -- state: { fps, tool, radius, matName, aim }

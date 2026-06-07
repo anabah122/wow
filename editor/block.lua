@@ -80,6 +80,7 @@ end
 -- остальные не трогаем -> нет взаимного гашения и нет проступающей базы между накладками.
 -- замещение даёт шейдер: накладки рисуются поверх базы по своей альфе в порядке слотов.
 function Block:setMaterialWeight(tx, ty, mat, target)
+    if not mat or not self.weight[mat] then return false end   -- неизвестный тайл (кривой материал) — пропустить
     local chunk, cx, cy = self:chunkAt(tx, ty)
     local ind = self.matInd[chunk]
     if not reserveSlot(ind, mat) then return false end
