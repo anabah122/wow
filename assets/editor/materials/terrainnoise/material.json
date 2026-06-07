@@ -1,0 +1,5 @@
+{
+    "type": "script",
+    "main": "init.lua",
+    "tiles": ["dreamcsand01", "dreamcgrass02", "hyjalrocksmooth"]
+}

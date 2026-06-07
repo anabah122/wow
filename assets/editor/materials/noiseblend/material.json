@@ -1,0 +1,8 @@
+{
+    "type": "mask",
+    "main": "init.lua",
+    "mask": "mask.png",
+    "scale": 64,
+    "height": 40,
+    "tiles": ["dreamcgrass02", "dreamcgrass03", "hyjaldirtrock", "hyjalrocksmooth"]
+}
